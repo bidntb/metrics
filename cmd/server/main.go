@@ -114,10 +114,15 @@ func counterHandler(res http.ResponseWriter, req *http.Request) {
 	fmt.Println(storage.CounterMetrics)
 }
 
+func unknownRoute(res http.ResponseWriter, req *http.Request) {
+	http.Error(res, "Invalid Request", http.StatusBadRequest)
+}
+
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc(`/update/gauge/`, gaugeHandler)
 	mux.HandleFunc(`/update/counter/`, counterHandler)
+	mux.HandleFunc(`/`, unknownRoute)
 	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
 		panic(err)
