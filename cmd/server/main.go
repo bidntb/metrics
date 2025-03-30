@@ -51,7 +51,7 @@ func gaugeHandler(res http.ResponseWriter, req *http.Request) {
 	path := strings.TrimPrefix(req.URL.Path, "/update/gauge/")
 	parts := strings.Split(path, "/")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		http.Error(res, "Invalid URL", http.StatusBadRequest)
+		http.Error(res, "Invalid URL", http.StatusNotFound)
 		return
 	}
 
@@ -83,7 +83,7 @@ func counterHandler(res http.ResponseWriter, req *http.Request) {
 	path := strings.TrimPrefix(req.URL.Path, "/update/counter/")
 	parts := strings.Split(path, "/")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		http.Error(res, "Invalid URL", http.StatusBadRequest)
+		http.Error(res, "Invalid URL", http.StatusNotFound)
 		return
 	}
 
