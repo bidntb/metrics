@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,9 +40,9 @@ var storage = &MemStorage{
 	CounterMetrics: make([]CounterMetric, 0),
 }
 
-func gaugeHandler(res http.ResponseWriter, req *http.Request) {
-	storage := MemStorage{}
+var counterMap = make(map[string]int64)
 
+func gaugeHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -74,8 +75,6 @@ func gaugeHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func counterHandler(res http.ResponseWriter, req *http.Request) {
-	storage := MemStorage{}
-
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -95,10 +94,10 @@ func counterHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Invalid Value", http.StatusBadRequest)
 		return
 	}
-	for _, metric := range storage.CounterMetrics {
-		if metric.metricName == metricName {
-			value = value + metric.value
-		}
+
+	lastValue, check := counterMap[metricName]
+	if check {
+		value = value + lastValue
 	}
 
 	CounterMetric := CounterMetric{
@@ -109,7 +108,10 @@ func counterHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	storage.AddCounterMetric(CounterMetric)
+	counterMap[metricName] = value
 	res.WriteHeader(http.StatusOK)
+
+	fmt.Println(storage.CounterMetrics)
 }
 
 func main() {
