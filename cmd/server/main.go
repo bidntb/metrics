@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -33,6 +34,24 @@ func (s *MemStorage) AddGaugeMetric(metric GaugeMetric) {
 
 func (s *MemStorage) AddCounterMetric(metric CounterMetric) {
 	s.CounterMetrics = append(s.CounterMetrics, metric)
+}
+
+func (s *MemStorage) GetGaugeMetric(name string) (*GaugeMetric, bool) {
+	for i := len(s.GaugeMetrics) - 1; i >= 0; i-- {
+		if s.GaugeMetrics[i].metricName == name {
+			return &s.GaugeMetrics[i], true
+		}
+	}
+	return nil, false
+}
+
+func (s *MemStorage) GetCounterMetric(name string) (*CounterMetric, bool) {
+	for i := len(s.CounterMetrics) - 1; i >= 0; i-- {
+		if s.CounterMetrics[i].metricName == name {
+			return &s.CounterMetrics[i], true
+		}
+	}
+	return nil, false
 }
 
 var storage = &MemStorage{
@@ -100,19 +119,56 @@ func counterHandler(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+func getMetricHandler(c *gin.Context) {
+	metricType := c.Param("type")
+	metricName := c.Param("name")
+
+	switch metricType {
+	case "gauge":
+		if metric, found := storage.GetGaugeMetric(metricName); found {
+			c.String(http.StatusOK, fmt.Sprintf("%v", metric.value))
+			return
+		}
+	case "counter":
+		if metric, found := storage.GetCounterMetric(metricName); found {
+			c.String(http.StatusOK, fmt.Sprintf("%v", metric.value))
+			return
+		}
+	}
+	c.Status(http.StatusNotFound)
+}
+
+func indexHandler(c *gin.Context) {
+	var gaugeMetrics []string
+	for _, metric := range storage.GaugeMetrics {
+		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.id, metric.metricName, metric.value))
+	}
+
+	var counterMetrics []string
+	for _, metric := range storage.CounterMetrics {
+		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.id, metric.metricName, metric.value))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"gauge_metrics":   gaugeMetrics,
+		"counter_metrics": counterMetrics,
+	})
+}
+
 func main() {
 	router := gin.Default()
 
-	// Routes
+	router.GET("/", indexHandler)
+
+	router.GET("/value/:type/:name", getMetricHandler)
+
 	router.POST("/update/gauge/:name/:value", gaugeHandler)
 	router.POST("/update/counter/:name/:value", counterHandler)
 
-	// Catch-all route for unknown paths
 	router.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid Request"})
 	})
 
-	// Start server
 	if err := router.Run(":8080"); err != nil {
 		panic(err)
 	}
