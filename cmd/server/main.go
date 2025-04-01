@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -41,105 +41,79 @@ var storage = &MemStorage{
 }
 
 var counterMap = make(map[string]int64)
-var gaugeMap = make(map[string]float64)
 
 func gaugeHandler(c *gin.Context) {
-	var requestBody struct {
-		MetricName string  `json:"metric_name"`
-		Value      float64 `json:"value"`
-	}
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+	metricName := c.Param("name")
+	valueStr := c.Param("value")
+
+	if metricName == "" || valueStr == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid URL"})
 		return
 	}
 
-	idStr := len(storage.GaugeMetrics)
+	value, err := strconv.ParseFloat(valueStr, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Value"})
+		return
+	}
+
 	gaugeMetric := GaugeMetric{
-		id:         idStr,
-		metricName: requestBody.MetricName,
+		id:         len(storage.GaugeMetrics),
+		metricName: metricName,
 		timestamp:  time.Now().Unix(),
-		value:      requestBody.Value,
+		value:      value,
 	}
 
 	storage.AddGaugeMetric(gaugeMetric)
-	c.JSON(http.StatusOK, gin.H{"id": idStr})
+	c.Status(http.StatusOK)
 }
 
 func counterHandler(c *gin.Context) {
-	var requestBody struct {
-		MetricName string `json:"metric_name"`
-		Value      int64  `json:"value"`
-	}
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+	metricName := c.Param("name")
+	valueStr := c.Param("value")
+
+	if metricName == "" || valueStr == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid URL"})
 		return
 	}
 
-	value, check := counterMap[requestBody.MetricName]
-	if check {
-		requestBody.Value += value
+	value, err := strconv.ParseInt(valueStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Value"})
+		return
 	}
 
-	idStr := len(storage.CounterMetrics)
+	lastValue, exists := counterMap[metricName]
+	if exists {
+		value = value + lastValue
+	}
+
 	counterMetric := CounterMetric{
-		id:         idStr,
-		metricName: requestBody.MetricName,
+		id:         len(storage.CounterMetrics),
+		metricName: metricName,
 		timestamp:  time.Now().Unix(),
-		value:      requestBody.Value,
+		value:      value,
 	}
 
 	storage.AddCounterMetric(counterMetric)
-	counterMap[requestBody.MetricName] = requestBody.Value
-	c.JSON(http.StatusOK, gin.H{"id": idStr})
-}
-
-func valueHandler(c *gin.Context) {
-	metricType := c.Param("metric_type")
-	metricName := c.Param("metric_name")
-
-	var totalValue float64
-	if metricType == "gauge" {
-		value, check := gaugeMap[metricName]
-		if check {
-			totalValue = value
-		}
-	} else if metricType == "counter" {
-		value, check := counterMap[metricName]
-		if check {
-			totalValue = float64(value)
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"value": totalValue})
-}
-
-func MainHandler(c *gin.Context) {
-	var gaugeMetrics []string
-	for _, metric := range storage.GaugeMetrics {
-		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.id, metric.metricName, metric.value))
-	}
-
-	var counterMetrics []string
-	for _, metric := range storage.CounterMetrics {
-		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.id, metric.metricName, metric.value))
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"gauge_metrics":   gaugeMetrics,
-		"counter_metrics": counterMetrics,
-	})
+	counterMap[metricName] = value
+	c.Status(http.StatusOK)
 }
 
 func main() {
-	r := gin.Default()
+	router := gin.Default()
 
-	r.POST("/update/gauge/", gaugeHandler)
-	r.POST("/update/counter/", counterHandler)
-	r.GET("/value/:metric_type/:metric_name", valueHandler)
-	r.GET("/", MainHandler)
+	// Routes
+	router.POST("/update/gauge/:name/:value", gaugeHandler)
+	router.POST("/update/counter/:name/:value", counterHandler)
 
-	err := r.Run(":8080")
-	if err != nil {
+	// Catch-all route for unknown paths
+	router.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"})
+	})
+
+	// Start server
+	if err := router.Run(":8080"); err != nil {
 		panic(err)
 	}
 }
