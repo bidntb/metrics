@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type GaugeMetric struct {
@@ -41,104 +41,89 @@ var storage = &MemStorage{
 }
 
 var counterMap = make(map[string]int64)
-var gaugeMap = make(map[string]float64)
 
-func gaugeHandler(c *gin.Context) {
-	var requestBody struct {
-		MetricName string  `json:"metric_name"`
-		Value      float64 `json:"value"`
-	}
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+func gaugeHandler(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
 
+	path := strings.TrimPrefix(req.URL.Path, "/update/gauge/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		http.Error(res, "Invalid URL", http.StatusNotFound)
+		return
+	}
+
+	metricName := parts[0]
 	idStr := len(storage.GaugeMetrics)
+	value, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		http.Error(res, "Invalid Value", http.StatusBadRequest)
+		return
+	}
+
 	gaugeMetric := GaugeMetric{
 		id:         idStr,
-		metricName: requestBody.MetricName,
+		metricName: metricName,
 		timestamp:  time.Now().Unix(),
-		value:      requestBody.Value,
+		value:      value,
 	}
 
 	storage.AddGaugeMetric(gaugeMetric)
-	c.JSON(http.StatusOK, gin.H{"id": idStr})
+	res.WriteHeader(http.StatusOK)
 }
 
-func counterHandler(c *gin.Context) {
-	var requestBody struct {
-		MetricName string `json:"metric_name"`
-		Value      int64  `json:"value"`
-	}
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+func counterHandler(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
 
-	value, check := counterMap[requestBody.MetricName]
-	if check {
-		requestBody.Value += value
+	path := strings.TrimPrefix(req.URL.Path, "/update/counter/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		http.Error(res, "Invalid URL", http.StatusNotFound)
+		return
 	}
 
+	metricName := parts[0]
 	idStr := len(storage.CounterMetrics)
-	counterMetric := CounterMetric{
+	value, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		http.Error(res, "Invalid Value", http.StatusBadRequest)
+		return
+	}
+
+	lastValue, check := counterMap[metricName]
+	if check {
+		value = value + lastValue
+	}
+
+	CounterMetric := CounterMetric{
 		id:         idStr,
-		metricName: requestBody.MetricName,
+		metricName: metricName,
 		timestamp:  time.Now().Unix(),
-		value:      requestBody.Value,
+		value:      value,
 	}
 
-	storage.AddCounterMetric(counterMetric)
-	counterMap[requestBody.MetricName] = requestBody.Value
-	c.JSON(http.StatusOK, gin.H{"id": idStr})
+	storage.AddCounterMetric(CounterMetric)
+	counterMap[metricName] = value
+	res.WriteHeader(http.StatusOK)
+
+	fmt.Println(storage.CounterMetrics)
 }
 
-func valueHandler(c *gin.Context) {
-	metricType := c.Param("metric_type")
-	metricName := c.Param("metric_name")
-
-	var totalValue float64
-	if metricType == "gauge" {
-		value, check := gaugeMap[metricName]
-		if check {
-			totalValue = value
-		}
-	} else if metricType == "counter" {
-		value, check := counterMap[metricName]
-		if check {
-			totalValue = float64(value)
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"value": totalValue})
-}
-
-func MainHandler(c *gin.Context) {
-	var gaugeMetrics []string
-	for _, metric := range storage.GaugeMetrics {
-		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.id, metric.metricName, metric.value))
-	}
-
-	var counterMetrics []string
-	for _, metric := range storage.CounterMetrics {
-		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.id, metric.metricName, metric.value))
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"gauge_metrics":   gaugeMetrics,
-		"counter_metrics": counterMetrics,
-	})
+func unknownRoute(res http.ResponseWriter, req *http.Request) {
+	http.Error(res, "Invalid Request", http.StatusBadRequest)
 }
 
 func main() {
-	r := gin.Default()
-
-	r.POST("/update/gauge/", gaugeHandler)
-	r.POST("/update/counter/", counterHandler)
-	r.GET("/value/:metric_type/:metric_name", valueHandler)
-	r.GET("/", MainHandler)
-
-	err := r.Run(":8080")
+	mux := http.NewServeMux()
+	mux.HandleFunc(`/update/gauge/`, gaugeHandler)
+	mux.HandleFunc(`/update/counter/`, counterHandler)
+	mux.HandleFunc(`/`, unknownRoute)
+	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
 		panic(err)
 	}
