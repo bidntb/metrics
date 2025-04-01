@@ -165,8 +165,11 @@ func main() {
 	router.POST("/update/gauge/:name/:value", gaugeHandler)
 	router.POST("/update/counter/:name/:value", counterHandler)
 
+	router.POST("/update/", func(c *gin.Context) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"})
+	})
 	router.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid Request"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 	})
 
 	if err := router.Run(":8080"); err != nil {
