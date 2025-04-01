@@ -155,6 +155,13 @@ func indexHandler(c *gin.Context) {
 	})
 }
 
+func nonRegisteredPathHandler(c *gin.Context) {
+	path := c.Param("path")
+	if path != "gauge" || path != "counter" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"})
+	}
+}
+
 func main() {
 	router := gin.Default()
 
@@ -165,9 +172,8 @@ func main() {
 	router.POST("/update/gauge/:name/:value", gaugeHandler)
 	router.POST("/update/counter/:name/:value", counterHandler)
 
-	router.POST("/update/", func(c *gin.Context) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"})
-	})
+	router.POST("/update/:path/*any", nonRegisteredPathHandler)
+
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 	})
