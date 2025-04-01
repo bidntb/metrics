@@ -69,6 +69,7 @@ func (m *Metrics) sendMetrics(serverURL string) error {
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 
 	for name, value := range m.counters {
@@ -81,6 +82,7 @@ func (m *Metrics) sendMetrics(serverURL string) error {
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 	return nil
 }
