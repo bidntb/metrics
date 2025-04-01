@@ -10,7 +10,7 @@ func TestNewMetrics(t *testing.T) {
 	metrics := NewMetrics()
 
 	if metrics == nil {
-		t.Error("NewMetrics() returned nil")
+		t.Fatal("NewMetrics() returned nil")
 	}
 
 	if metrics.gauges == nil {
@@ -19,6 +19,34 @@ func TestNewMetrics(t *testing.T) {
 
 	if metrics.counters == nil {
 		t.Error("counters map was not initialized")
+	}
+}
+
+func TestUpdateMetrics(t *testing.T) {
+	metrics := NewMetrics()
+	metrics.updateMetrics()
+
+	expectedGauges := []string{
+		"Alloc", "BuckHashSys", "Frees", "GCCPUFraction", "GCSys",
+		"HeapAlloc", "HeapIdle", "HeapInuse", "HeapObjects", "HeapReleased",
+		"HeapSys", "LastGC", "Lookups", "MCacheInuse", "MCacheSys",
+		"MSpanInuse", "MSpanSys", "Mallocs", "NextGC", "NumForcedGC",
+		"NumGC", "OtherSys", "PauseTotalNs", "StackInuse", "StackSys",
+		"Sys", "TotalAlloc", "RandomValue",
+	}
+
+	for _, gauge := range expectedGauges {
+		if _, exists := metrics.gauges[gauge]; !exists {
+			t.Errorf("Expected gauge %s not found", gauge)
+		}
+	}
+
+	if _, exists := metrics.counters["PollCount"]; !exists {
+		t.Error("PollCount counter not found")
+	}
+
+	if metrics.counters["PollCount"] != 1 {
+		t.Errorf("Expected PollCount to be 1, got %d", metrics.counters["PollCount"])
 	}
 }
 
