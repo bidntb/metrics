@@ -66,10 +66,10 @@ func (m *Metrics) sendMetrics(serverURL string) error {
 			return err
 		}
 		_, err = client.Do(req)
+		req.Body.Close()
 		if err != nil {
 			return err
 		}
-		req.Body.Close()
 	}
 
 	for name, value := range m.counters {
@@ -79,11 +79,11 @@ func (m *Metrics) sendMetrics(serverURL string) error {
 			return err
 		}
 		_, err = client.Do(req)
+		req.Body.Close()
 		if err != nil {
 			return err
 		}
 		return nil
-		req.Body.Close()
 	}
 	return nil
 }
