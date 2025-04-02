@@ -185,6 +185,9 @@ func main() {
 	router.POST("/update/:wrong", func(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
 	})
+	router.POST("/update/:wrong/*any", func(c *gin.Context) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
+	})
 
 	router.POST("/update/gauge/:name/:value", gaugeHandler)
 	router.POST("/update/counter/:name/:value", counterHandler)
