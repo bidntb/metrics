@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -88,11 +89,28 @@ func (m *Metrics) sendMetrics(serverURL string) error {
 }
 
 func main() {
-	metrics := NewMetrics()
-	serverURL := "http://localhost:8080"
+	serverAddr := flag.String("a", "localhost:8080", "HTTP server address")
+	reportInterval := flag.Int("r", 10, "Report interval in seconds")
+	pollInterval := flag.Int("p", 2, "Poll interval in seconds")
 
-	pollTicker := time.NewTicker(2 * time.Second)
-	reportTicker := time.NewTicker(10 * time.Second)
+	flag.Parse()
+
+	if flag.NArg() > 0 {
+		fmt.Printf("Unknown arguments: %v\n", flag.Args())
+		flag.Usage()
+		return
+	}
+
+	metrics := NewMetrics()
+	serverURL := fmt.Sprintf("http://%s", *serverAddr)
+
+	pollTicker := time.NewTicker(time.Duration(*pollInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(*reportInterval) * time.Second)
+
+	fmt.Printf("Starting metrics collector:\n")
+	fmt.Printf("Server URL: %s\n", serverURL)
+	fmt.Printf("Poll interval: %d seconds\n", *pollInterval)
+	fmt.Printf("Report interval: %d seconds\n", *reportInterval)
 
 	for {
 		select {
