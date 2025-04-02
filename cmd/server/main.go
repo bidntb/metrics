@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -165,6 +166,9 @@ func nonRegisteredPathHandler(c *gin.Context) {
 }
 
 func main() {
+	serverAddress := flag.String("a", "localhost:8080", "HTTP server endpoint address")
+	flag.Parse()
+
 	router := gin.Default()
 
 	router.GET("/", indexHandler)
@@ -196,7 +200,7 @@ func main() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 	})
 
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(*serverAddress); err != nil {
 		panic(err)
 	}
 }
