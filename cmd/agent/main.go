@@ -5,13 +5,48 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
 	"time"
 )
 
 type Metrics struct {
 	gauges   map[string]float64
 	counters map[string]int64
+}
+
+func getEnvOrDefault(key string, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
+func parseFlags() (string, int, int) {
+	serverAddr := flag.String("a", "localhost:8080", "HTTP server address")
+	reportInterval := flag.Int("r", 10, "Report interval in seconds")
+	pollInterval := flag.Int("p", 2, "Poll interval in seconds")
+
+	flag.Parse()
+
+	address := getEnvOrDefault("ADDRESS", *serverAddr)
+
+	reportInt := *reportInterval
+	if envReportInterval := getEnvOrDefault("REPORT_INTERVAL", ""); envReportInterval != "" {
+		if value, err := strconv.Atoi(envReportInterval); err == nil {
+			reportInt = value
+		}
+	}
+
+	pollInt := *pollInterval
+	if envPollInterval := getEnvOrDefault("POLL_INTERVAL", ""); envPollInterval != "" {
+		if value, err := strconv.Atoi(envPollInterval); err == nil {
+			pollInt = value
+		}
+	}
+
+	return address, reportInt, pollInt
 }
 
 func NewMetrics() *Metrics {
@@ -89,11 +124,7 @@ func (m *Metrics) sendMetrics(serverURL string) error {
 }
 
 func main() {
-	serverAddr := flag.String("a", "localhost:8080", "HTTP server address")
-	reportInterval := flag.Int("r", 10, "Report interval in seconds")
-	pollInterval := flag.Int("p", 2, "Poll interval in seconds")
-
-	flag.Parse()
+	address, reportInterval, pollInterval := parseFlags()
 
 	if flag.NArg() > 0 {
 		fmt.Printf("Unknown arguments: %v\n", flag.Args())
@@ -102,15 +133,15 @@ func main() {
 	}
 
 	metrics := NewMetrics()
-	serverURL := fmt.Sprintf("http://%s", *serverAddr)
+	serverURL := fmt.Sprintf("http://%s", address)
 
-	pollTicker := time.NewTicker(time.Duration(*pollInterval) * time.Second)
-	reportTicker := time.NewTicker(time.Duration(*reportInterval) * time.Second)
+	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(reportInterval) * time.Second)
 
 	fmt.Printf("Starting metrics collector:\n")
 	fmt.Printf("Server URL: %s\n", serverURL)
-	fmt.Printf("Poll interval: %d seconds\n", *pollInterval)
-	fmt.Printf("Report interval: %d seconds\n", *reportInterval)
+	fmt.Printf("Poll interval: %d seconds\n", pollInterval)
+	fmt.Printf("Report interval: %d seconds\n", reportInterval)
 
 	for {
 		select {
