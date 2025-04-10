@@ -11,7 +11,7 @@ import (
 	"bidntb/metrics/internal/storage"
 )
 
-func GaugeHandler(c *gin.Context) {
+func AddGaugeHandler(c *gin.Context) {
 	metricName := c.Param("name")
 	valueStr := c.Param("value")
 
@@ -37,7 +37,7 @@ func GaugeHandler(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func CounterHandler(c *gin.Context) {
+func AddCounterHandler(c *gin.Context) {
 	metricName := c.Param("name")
 	valueStr := c.Param("value")
 

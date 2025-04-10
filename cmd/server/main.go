@@ -37,8 +37,8 @@ func main() {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
 	})
 
-	router.POST("/update/gauge/:name/:value", handler.GaugeHandler)
-	router.POST("/update/counter/:name/:value", handler.CounterHandler)
+	router.POST("/update/gauge/:name/:value", handler.AddGaugeHandler)
+	router.POST("/update/counter/:name/:value", handler.AddCounterHandler)
 
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})

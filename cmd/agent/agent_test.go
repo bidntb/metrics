@@ -4,27 +4,29 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"bidntb/metrics/internal/collector"
 )
 
 func TestNewMetrics(t *testing.T) {
-	metrics := NewMetrics()
+	metrics := collector.NewMetrics()
 
 	if metrics == nil {
 		t.Fatal("NewMetrics() returned nil")
 	}
 
-	if metrics.gauges == nil {
+	if metrics.Gauges == nil {
 		t.Error("gauges map was not initialized")
 	}
 
-	if metrics.counters == nil {
+	if metrics.Counters == nil {
 		t.Error("counters map was not initialized")
 	}
 }
 
 func TestUpdateMetrics(t *testing.T) {
-	metrics := NewMetrics()
-	metrics.updateMetrics()
+	metrics := collector.NewMetrics()
+	metrics.UpdateMetrics()
 
 	expectedGauges := []string{
 		"Alloc", "BuckHashSys", "Frees", "GCCPUFraction", "GCSys",
@@ -36,24 +38,24 @@ func TestUpdateMetrics(t *testing.T) {
 	}
 
 	for _, gauge := range expectedGauges {
-		if _, exists := metrics.gauges[gauge]; !exists {
+		if _, exists := metrics.Gauges[gauge]; !exists {
 			t.Errorf("Expected gauge %s not found", gauge)
 		}
 	}
 
-	if _, exists := metrics.counters["PollCount"]; !exists {
+	if _, exists := metrics.Counters["PollCount"]; !exists {
 		t.Error("PollCount counter not found")
 	}
 
-	if metrics.counters["PollCount"] != 1 {
-		t.Errorf("Expected PollCount to be 1, got %d", metrics.counters["PollCount"])
+	if metrics.Counters["PollCount"] != 1 {
+		t.Errorf("Expected PollCount to be 1, got %d", metrics.Counters["PollCount"])
 	}
 }
 
 func TestSendMetrics(t *testing.T) {
-	metrics := NewMetrics()
-	metrics.gauges["TestGauge"] = 123.45
-	metrics.counters["TestCounter"] = 42
+	metrics := collector.NewMetrics()
+	metrics.Gauges["TestGauge"] = 123.45
+	metrics.Counters["TestCounter"] = 42
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
@@ -63,42 +65,42 @@ func TestSendMetrics(t *testing.T) {
 	}))
 	defer server.Close()
 
-	err := metrics.sendMetrics(server.URL)
+	err := metrics.SendMetrics(server.URL)
 	if err != nil {
 		t.Errorf("sendMetrics() returned unexpected error: %v", err)
 	}
 }
 
 func TestSendMetricsError(t *testing.T) {
-	metrics := NewMetrics()
-	metrics.gauges["TestGauge"] = 123.45
+	metrics := collector.NewMetrics()
+	metrics.Gauges["TestGauge"] = 123.45
 
-	err := metrics.sendMetrics("http://localhost:12345")
+	err := metrics.SendMetrics("http://localhost:12345")
 	if err == nil {
 		t.Error("Expected error when sending to non-existent server, got nil")
 	}
 }
 
 func TestMultipleUpdateMetrics(t *testing.T) {
-	metrics := NewMetrics()
+	metrics := collector.NewMetrics()
 
 	for i := 0; i < 3; i++ {
-		metrics.updateMetrics()
+		metrics.UpdateMetrics()
 	}
 
-	if metrics.counters["PollCount"] != 3 {
-		t.Errorf("Expected PollCount to be 3, got %d", metrics.counters["PollCount"])
+	if metrics.Counters["PollCount"] != 3 {
+		t.Errorf("Expected PollCount to be 3, got %d", metrics.Counters["PollCount"])
 	}
 }
 
 func TestRandomValueChanges(t *testing.T) {
-	metrics := NewMetrics()
+	metrics := collector.NewMetrics()
 
-	metrics.updateMetrics()
-	firstValue := metrics.gauges["RandomValue"]
+	metrics.UpdateMetrics()
+	firstValue := metrics.Gauges["RandomValue"]
 
-	metrics.updateMetrics()
-	secondValue := metrics.gauges["RandomValue"]
+	metrics.UpdateMetrics()
+	secondValue := metrics.Gauges["RandomValue"]
 
 	if firstValue == secondValue {
 		t.Error("RandomValue should change between updates")
