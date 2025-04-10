@@ -3,14 +3,14 @@ package storage
 import ()
 
 type GaugeMetric struct {
-	Id         int
+	ID         int
 	Timestamp  int64
 	MetricName string
 	Value      float64
 }
 
 type CounterMetric struct {
-	Id         int
+	ID         int
 	MetricName string
 	Timestamp  int64
 	Value      int64
