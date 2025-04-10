@@ -1,7 +1,5 @@
 package storage
 
-import ()
-
 type GaugeMetric struct {
 	ID         int
 	Timestamp  int64
