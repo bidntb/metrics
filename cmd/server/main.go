@@ -28,7 +28,7 @@ func gaugeHandler(c *gin.Context) {
 	}
 
 	gaugeMetric := storage.GaugeMetric{
-		Id:         len(storage.Storage.GaugeMetrics),
+		ID:         len(storage.Storage.GaugeMetrics),
 		MetricName: metricName,
 		Timestamp:  time.Now().Unix(),
 		Value:      value,
@@ -59,7 +59,7 @@ func counterHandler(c *gin.Context) {
 	}
 
 	counterMetric := storage.CounterMetric{
-		Id:         len(storage.Storage.CounterMetrics),
+		ID:         len(storage.Storage.CounterMetrics),
 		MetricName: metricName,
 		Timestamp:  time.Now().Unix(),
 		Value:      value,
@@ -92,12 +92,12 @@ func getMetricHandler(c *gin.Context) {
 func indexHandler(c *gin.Context) {
 	var gaugeMetrics []string
 	for _, metric := range storage.Storage.GaugeMetrics {
-		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.Id, metric.MetricName, metric.Value))
+		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.ID, metric.MetricName, metric.Value))
 	}
 
 	var counterMetrics []string
 	for _, metric := range storage.Storage.CounterMetrics {
-		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.Id, metric.MetricName, metric.Value))
+		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.ID, metric.MetricName, metric.Value))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
