@@ -106,15 +106,6 @@ func indexHandler(c *gin.Context) {
 	})
 }
 
-func NoRedirect(c *gin.Context) {
-	c.Request.Header.Set("Connection", "close")
-	c.Next()
-}
-
-func nonRegisteredPathHandler(c *gin.Context) {
-	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"})
-}
-
 func main() {
 
 	ServerAddress := nconfig.GetServerAddress()
