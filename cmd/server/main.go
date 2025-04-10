@@ -16,7 +16,7 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/", handler.IndexHandler)
-	router.GET("/value/:type/:name", handler.GetMetricHandler)
+	router.GET("/value/:type/:name", handler.ValueHandler)
 
 	router.POST("/update/counter/", func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})

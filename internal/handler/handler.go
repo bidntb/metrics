@@ -69,7 +69,7 @@ func CounterHandler(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func GetMetricHandler(c *gin.Context) {
+func ValueHandler(c *gin.Context) {
 	metricType := c.Param("type")
 	metricName := c.Param("name")
 
