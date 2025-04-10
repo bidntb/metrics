@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bidntb/metrics/internal/nconfig"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -124,13 +125,7 @@ func (m *Metrics) sendMetrics(serverURL string) error {
 }
 
 func main() {
-	address, reportInterval, pollInterval := parseFlags()
-
-	if flag.NArg() > 0 {
-		fmt.Printf("Unknown arguments: %v\n", flag.Args())
-		flag.Usage()
-		return
-	}
+	address, reportInterval, pollInterval := nconfig.ParseFlags()
 
 	metrics := NewMetrics()
 	serverURL := fmt.Sprintf("http://%s", address)

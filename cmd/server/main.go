@@ -1,67 +1,16 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"bidntb/metrics/internal/nconfig"
+	"bidntb/metrics/internal/storage"
 )
-
-type GaugeMetric struct {
-	id         int
-	timestamp  int64
-	metricName string
-	value      float64
-}
-
-type CounterMetric struct {
-	id         int
-	metricName string
-	timestamp  int64
-	value      int64
-}
-
-type MemStorage struct {
-	GaugeMetrics   []GaugeMetric
-	CounterMetrics []CounterMetric
-}
-
-func (s *MemStorage) AddGaugeMetric(metric GaugeMetric) {
-	s.GaugeMetrics = append(s.GaugeMetrics, metric)
-}
-
-func (s *MemStorage) AddCounterMetric(metric CounterMetric) {
-	s.CounterMetrics = append(s.CounterMetrics, metric)
-}
-
-func (s *MemStorage) GetGaugeMetric(name string) (*GaugeMetric, bool) {
-	for i := len(s.GaugeMetrics) - 1; i >= 0; i-- {
-		if s.GaugeMetrics[i].metricName == name {
-			return &s.GaugeMetrics[i], true
-		}
-	}
-	return nil, false
-}
-
-func (s *MemStorage) GetCounterMetric(name string) (*CounterMetric, bool) {
-	for i := len(s.CounterMetrics) - 1; i >= 0; i-- {
-		if s.CounterMetrics[i].metricName == name {
-			return &s.CounterMetrics[i], true
-		}
-	}
-	return nil, false
-}
-
-var storage = &MemStorage{
-	GaugeMetrics:   make([]GaugeMetric, 0),
-	CounterMetrics: make([]CounterMetric, 0),
-}
-
-var counterMap = make(map[string]int64)
 
 func gaugeHandler(c *gin.Context) {
 	metricName := c.Param("name")
@@ -78,14 +27,14 @@ func gaugeHandler(c *gin.Context) {
 		return
 	}
 
-	gaugeMetric := GaugeMetric{
-		id:         len(storage.GaugeMetrics),
-		metricName: metricName,
-		timestamp:  time.Now().Unix(),
-		value:      value,
+	gaugeMetric := storage.GaugeMetric{
+		Id:         len(storage.Storage.GaugeMetrics),
+		MetricName: metricName,
+		Timestamp:  time.Now().Unix(),
+		Value:      value,
 	}
 
-	storage.AddGaugeMetric(gaugeMetric)
+	storage.Storage.AddGaugeMetric(gaugeMetric)
 	c.Status(http.StatusOK)
 }
 
@@ -104,20 +53,20 @@ func counterHandler(c *gin.Context) {
 		return
 	}
 
-	lastValue, exists := counterMap[metricName]
+	lastValue, exists := storage.CounterMap[metricName]
 	if exists {
 		value = value + lastValue
 	}
 
-	counterMetric := CounterMetric{
-		id:         len(storage.CounterMetrics),
-		metricName: metricName,
-		timestamp:  time.Now().Unix(),
-		value:      value,
+	counterMetric := storage.CounterMetric{
+		Id:         len(storage.Storage.CounterMetrics),
+		MetricName: metricName,
+		Timestamp:  time.Now().Unix(),
+		Value:      value,
 	}
 
-	storage.AddCounterMetric(counterMetric)
-	counterMap[metricName] = value
+	storage.Storage.AddCounterMetric(counterMetric)
+	storage.CounterMap[metricName] = value
 	c.Status(http.StatusOK)
 }
 
@@ -127,13 +76,13 @@ func getMetricHandler(c *gin.Context) {
 
 	switch metricType {
 	case "gauge":
-		if metric, found := storage.GetGaugeMetric(metricName); found {
-			c.String(http.StatusOK, fmt.Sprintf("%v", metric.value))
+		if metric, found := storage.Storage.GetGaugeMetric(metricName); found {
+			c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
 			return
 		}
 	case "counter":
-		if metric, found := storage.GetCounterMetric(metricName); found {
-			c.String(http.StatusOK, fmt.Sprintf("%v", metric.value))
+		if metric, found := storage.Storage.GetCounterMetric(metricName); found {
+			c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
 			return
 		}
 	}
@@ -142,13 +91,13 @@ func getMetricHandler(c *gin.Context) {
 
 func indexHandler(c *gin.Context) {
 	var gaugeMetrics []string
-	for _, metric := range storage.GaugeMetrics {
-		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.id, metric.metricName, metric.value))
+	for _, metric := range storage.Storage.GaugeMetrics {
+		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.Id, metric.MetricName, metric.Value))
 	}
 
 	var counterMetrics []string
-	for _, metric := range storage.CounterMetrics {
-		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.id, metric.metricName, metric.value))
+	for _, metric := range storage.Storage.CounterMetrics {
+		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.Id, metric.MetricName, metric.Value))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -167,19 +116,8 @@ func nonRegisteredPathHandler(c *gin.Context) {
 }
 
 func main() {
-	defaultAddress := "localhost:8080"
 
-	if envAddress := os.Getenv("ADDRESS"); envAddress != "" {
-		defaultAddress = envAddress
-	}
-
-	serverAddress := flag.String("a", defaultAddress, "HTTP server endpoint address")
-	flag.Parse()
-
-	finalAddress := *serverAddress
-	if envAddress := os.Getenv("ADDRESS"); envAddress != "" {
-		finalAddress = envAddress
-	}
+	ServerAddress := nconfig.GetServerAddress()
 
 	router := gin.Default()
 
@@ -212,7 +150,7 @@ func main() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 	})
 
-	if err := router.Run(finalAddress); err != nil {
+	if err := router.Run(ServerAddress); err != nil {
 		panic(err)
 	}
 }
