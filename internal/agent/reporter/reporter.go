@@ -14,7 +14,7 @@ func SendMetrics(serverURL string, metrics *Metrics) error {
 
 	for name, value := range metrics.Gauges {
 		url := fmt.Sprintf("%s/update/gauge/%s/%f", serverURL, name, value)
-		req, err := http.NewRequest("POST", url, nil)
+		req, err := http.NewRequest(http.MethodPost, url, nil)
 		if err != nil {
 			return err
 		}
@@ -27,7 +27,7 @@ func SendMetrics(serverURL string, metrics *Metrics) error {
 
 	for name, value := range metrics.Counters {
 		url := fmt.Sprintf("%s/update/counter/%s/%d", serverURL, name, value)
-		req, err := http.NewRequest("POST", url, nil)
+		req, err := http.NewRequest(http.MethodPost, url, nil)
 		if err != nil {
 			return err
 		}

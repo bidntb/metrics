@@ -3,7 +3,6 @@ package main
 import (
 	"bidntb/metrics/internal/agent/collector"
 	"bidntb/metrics/internal/agent/reporter"
-
 	"net/http"
 	"net/http/httptest"
 	"testing"

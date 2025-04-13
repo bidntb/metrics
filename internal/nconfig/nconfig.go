@@ -61,5 +61,6 @@ func ParseFlags() (string, int, int) {
 		}
 	}
 
+	address = fmt.Sprintf("http://%s", address)
 	return address, reportInt, pollInt
 }
