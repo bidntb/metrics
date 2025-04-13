@@ -1,5 +1,14 @@
 package storage
 
+type StorageInterface interface {
+	AddGaugeMetric(metric GaugeMetric)
+	AddCounterMetric(metric CounterMetric)
+	GetGaugeMetric(name string) (*GaugeMetric, bool)
+	GetCounterMetric(name string) (*CounterMetric, bool)
+	GetGaugeMetrics() []GaugeMetric
+	GetCounterMetrics() []CounterMetric
+}
+
 type GaugeMetric struct {
 	ID         int
 	Timestamp  int64
@@ -12,6 +21,7 @@ type CounterMetric struct {
 	MetricName string
 	Timestamp  int64
 	Value      int64
+	LastValue  int64
 }
 
 type MemStorage struct {
@@ -25,6 +35,7 @@ func (s *MemStorage) AddGaugeMetric(metric GaugeMetric) {
 
 func (s *MemStorage) AddCounterMetric(metric CounterMetric) {
 	s.CounterMetrics = append(s.CounterMetrics, metric)
+
 }
 
 func (s *MemStorage) GetGaugeMetric(name string) (*GaugeMetric, bool) {
@@ -45,9 +56,17 @@ func (s *MemStorage) GetCounterMetric(name string) (*CounterMetric, bool) {
 	return nil, false
 }
 
-var Storage = &MemStorage{
-	GaugeMetrics:   make([]GaugeMetric, 0),
-	CounterMetrics: make([]CounterMetric, 0),
+func (s *MemStorage) GetGaugeMetrics() []GaugeMetric {
+	return s.GaugeMetrics
 }
 
-var CounterMap = make(map[string]int64)
+func (s *MemStorage) GetCounterMetrics() []CounterMetric {
+	return s.CounterMetrics
+}
+
+func NewMemStorage() StorageInterface {
+	return &MemStorage{
+		GaugeMetrics:   make([]GaugeMetric, 0),
+		CounterMetrics: make([]CounterMetric, 0),
+	}
+}

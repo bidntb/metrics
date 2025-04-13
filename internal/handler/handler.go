@@ -11,7 +11,17 @@ import (
 	"bidntb/metrics/internal/storage"
 )
 
-func AddGaugeHandler(c *gin.Context) {
+type Handler struct {
+	storage storage.StorageInterface
+}
+
+func NewHandler(storage storage.StorageInterface) *Handler {
+	return &Handler{
+		storage: storage,
+	}
+}
+
+func (h *Handler) AddGaugeHandler(c *gin.Context) {
 	metricName := c.Param("name")
 	valueStr := c.Param("value")
 
@@ -27,17 +37,17 @@ func AddGaugeHandler(c *gin.Context) {
 	}
 
 	gaugeMetric := storage.GaugeMetric{
-		ID:         len(storage.Storage.GaugeMetrics),
+		ID:         len(h.storage.GetGaugeMetrics()),
 		MetricName: metricName,
 		Timestamp:  time.Now().Unix(),
 		Value:      value,
 	}
 
-	storage.Storage.AddGaugeMetric(gaugeMetric)
+	h.storage.AddGaugeMetric(gaugeMetric)
 	c.Status(http.StatusOK)
 }
 
-func AddCounterHandler(c *gin.Context) {
+func (h *Handler) AddCounterHandler(c *gin.Context) {
 	metricName := c.Param("name")
 	valueStr := c.Param("value")
 
@@ -52,35 +62,34 @@ func AddCounterHandler(c *gin.Context) {
 		return
 	}
 
-	lastValue, exists := storage.CounterMap[metricName]
+	lastMetric, exists := h.storage.GetCounterMetric(metricName)
 	if exists {
-		value = value + lastValue
+		value = value + lastMetric.Value
 	}
 
 	counterMetric := storage.CounterMetric{
-		ID:         len(storage.Storage.CounterMetrics),
+		ID:         len(h.storage.GetCounterMetrics()),
 		MetricName: metricName,
 		Timestamp:  time.Now().Unix(),
 		Value:      value,
 	}
 
-	storage.Storage.AddCounterMetric(counterMetric)
-	storage.CounterMap[metricName] = value
+	h.storage.AddCounterMetric(counterMetric)
 	c.Status(http.StatusOK)
 }
 
-func ValueHandler(c *gin.Context) {
+func (h *Handler) ValueHandler(c *gin.Context) {
 	metricType := c.Param("type")
 	metricName := c.Param("name")
 
 	switch metricType {
 	case "gauge":
-		if metric, found := storage.Storage.GetGaugeMetric(metricName); found {
+		if metric, found := h.storage.GetGaugeMetric(metricName); found {
 			c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
 			return
 		}
 	case "counter":
-		if metric, found := storage.Storage.GetCounterMetric(metricName); found {
+		if metric, found := h.storage.GetCounterMetric(metricName); found {
 			c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
 			return
 		}
@@ -88,14 +97,14 @@ func ValueHandler(c *gin.Context) {
 	c.Status(http.StatusNotFound)
 }
 
-func IndexHandler(c *gin.Context) {
+func (h *Handler) IndexHandler(c *gin.Context) {
 	var gaugeMetrics []string
-	for _, metric := range storage.Storage.GaugeMetrics {
+	for _, metric := range h.storage.GetGaugeMetrics() {
 		gaugeMetrics = append(gaugeMetrics, fmt.Sprintf("%d: %s - %.2f", metric.ID, metric.MetricName, metric.Value))
 	}
 
 	var counterMetrics []string
-	for _, metric := range storage.Storage.CounterMetrics {
+	for _, metric := range h.storage.GetCounterMetrics() {
 		counterMetrics = append(counterMetrics, fmt.Sprintf("%d: %s - %d", metric.ID, metric.MetricName, metric.Value))
 	}
 
