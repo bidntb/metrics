@@ -1,19 +1,18 @@
 package reporter
 
 import (
+	"bidntb/metrics/internal/agent/collector"
+
 	"fmt"
 	"net/http"
 )
 
-type Metrics struct {
-	gauges   map[string]float64
-	counters map[string]int64
-}
+type Metrics = collector.Metrics
 
-func (m *Metrics) SendMetrics(serverURL string) error {
+func SendMetrics(serverURL string, metrics *Metrics) error {
 	client := &http.Client{}
 
-	for name, value := range m.gauges {
+	for name, value := range metrics.Gauges {
 		url := fmt.Sprintf("%s/update/gauge/%s/%f", serverURL, name, value)
 		req, err := http.NewRequest("POST", url, nil)
 		if err != nil {
@@ -26,7 +25,7 @@ func (m *Metrics) SendMetrics(serverURL string) error {
 		resp.Body.Close()
 	}
 
-	for name, value := range m.counters {
+	for name, value := range metrics.Counters {
 		url := fmt.Sprintf("%s/update/counter/%s/%d", serverURL, name, value)
 		req, err := http.NewRequest("POST", url, nil)
 		if err != nil {

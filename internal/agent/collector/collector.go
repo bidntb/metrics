@@ -1,9 +1,7 @@
 package collector
 
 import (
-	"fmt"
 	"math/rand"
-	"net/http"
 	"runtime"
 )
 
@@ -53,35 +51,4 @@ func (m *Metrics) UpdateMetrics() {
 	m.Gauges["RandomValue"] = rand.Float64()
 
 	m.Counters["PollCount"]++
-}
-
-func (m *Metrics) SendMetrics(serverURL string) error {
-	client := &http.Client{}
-
-	for name, value := range m.Gauges {
-		url := fmt.Sprintf("%s/update/gauge/%s/%f", serverURL, name, value)
-		req, err := http.NewRequest("POST", url, nil)
-		if err != nil {
-			return err
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return err
-		}
-		resp.Body.Close()
-	}
-
-	for name, value := range m.Counters {
-		url := fmt.Sprintf("%s/update/counter/%s/%d", serverURL, name, value)
-		req, err := http.NewRequest("POST", url, nil)
-		if err != nil {
-			return err
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return err
-		}
-		resp.Body.Close()
-	}
-	return nil
 }

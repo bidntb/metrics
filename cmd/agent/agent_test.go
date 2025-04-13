@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bidntb/metrics/internal/agent/collector"
+	"bidntb/metrics/internal/agent/reporter"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"bidntb/metrics/internal/collector"
 )
 
 func TestNewMetrics(t *testing.T) {
@@ -54,6 +55,7 @@ func TestUpdateMetrics(t *testing.T) {
 
 func TestSendMetrics(t *testing.T) {
 	metrics := collector.NewMetrics()
+
 	metrics.Gauges["TestGauge"] = 123.45
 	metrics.Counters["TestCounter"] = 42
 
@@ -65,7 +67,7 @@ func TestSendMetrics(t *testing.T) {
 	}))
 	defer server.Close()
 
-	err := metrics.SendMetrics(server.URL)
+	err := reporter.SendMetrics(server.URL, metrics)
 	if err != nil {
 		t.Errorf("sendMetrics() returned unexpected error: %v", err)
 	}
@@ -75,7 +77,7 @@ func TestSendMetricsError(t *testing.T) {
 	metrics := collector.NewMetrics()
 	metrics.Gauges["TestGauge"] = 123.45
 
-	err := metrics.SendMetrics("http://localhost:12345")
+	err := reporter.SendMetrics("http://localhost:12345", metrics)
 	if err == nil {
 		t.Error("Expected error when sending to non-existent server, got nil")
 	}
