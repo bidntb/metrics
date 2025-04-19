@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"bidntb/metrics/internal/handler"
+	"bidntb/metrics/internal/logger"
 	"bidntb/metrics/internal/nconfig"
 	"bidntb/metrics/internal/storage"
 )
@@ -13,6 +14,7 @@ func Run() {
 	serverAddress := nconfig.GetServerAddress()
 
 	router := gin.Default()
+	router.Use(logger.LoggingMiddleware())
 
 	storageInstance := storage.NewMemStorage()
 
