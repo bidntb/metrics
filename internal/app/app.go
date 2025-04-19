@@ -1,8 +1,6 @@
 package app
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"bidntb/metrics/internal/handler"
@@ -12,7 +10,7 @@ import (
 
 func Run() {
 
-	ServerAddress := nconfig.GetServerAddress()
+	serverAddress := nconfig.GetServerAddress()
 
 	router := gin.Default()
 
@@ -22,33 +20,19 @@ func Run() {
 	router.GET("/", h.IndexHandler)
 	router.GET("/value/:type/:name", h.ValueHandler)
 
-	router.POST("/update/counter/", func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
-	})
-	router.POST("/update/counter", func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
-	})
-	router.POST("/update/gauge/", func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
-	})
-	router.POST("/update/gauge", func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
-	})
-	router.POST("/update/:wrong", func(c *gin.Context) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
-	})
-	router.POST("/update/:wrong/*any", func(c *gin.Context) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
-	})
+	router.POST("/update/counter/", h.NotFoundHandler)
+	router.POST("/update/counter", h.NotFoundHandler)
+	router.POST("/update/gauge/", h.NotFoundHandler)
+	router.POST("/update/gauge", h.NotFoundHandler)
+	router.POST("/update/:wrong", h.BadRequestHandler)
+	router.POST("/update/:wrong/*any", h.BadRequestHandler)
 
 	router.POST("/update/gauge/:name/:value", h.AddGaugeHandler)
 	router.POST("/update/counter/:name/:value", h.AddCounterHandler)
 
-	router.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
-	})
+	router.NoRoute(h.NotFoundHandler)
 
-	if err := router.Run(ServerAddress); err != nil {
+	if err := router.Run(serverAddress); err != nil {
 		panic(err)
 	}
 }
