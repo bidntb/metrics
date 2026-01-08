@@ -21,14 +21,6 @@ func NewHandler(storage storage.StorageInterface) *Handler {
 	}
 }
 
-func (h *Handler) NotFoundHandler(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
-}
-
-func (h *Handler) BadRequestHandler(c *gin.Context) {
-	c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
-}
-
 func (h *Handler) AddGaugeHandler(c *gin.Context) {
 	metricName := c.Param("name")
 	valueStr := c.Param("value")
