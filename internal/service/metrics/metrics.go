@@ -166,7 +166,7 @@ func (s *Service) getCounterByID(id string) (*MetricResponse, bool) {
 
 func (s *Service) getGaugeValue(name string) (string, bool) {
 	if m, ok := s.storage.GetGaugeMetric(name); ok {
-		return fmt.Sprintf("%s", formatGauge(m.Value)), true
+		return formatGauge(m.Value), true
 	}
 	return "", false
 }
