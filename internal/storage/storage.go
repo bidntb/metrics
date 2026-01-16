@@ -1,5 +1,7 @@
 package storage
 
+import "fmt"
+
 type StorageInterface interface {
 	AddGaugeMetric(metric GaugeMetric)
 	AddCounterMetric(metric CounterMetric)
@@ -7,6 +9,8 @@ type StorageInterface interface {
 	GetCounterMetric(name string) (*CounterMetric, bool)
 	GetGaugeMetrics() []GaugeMetric
 	GetCounterMetrics() []CounterMetric
+	GetGaugeMetricByID(id string) (*GaugeMetric, bool)
+	GetCounterMetricByID(id string) (*CounterMetric, bool)
 }
 
 type GaugeMetric struct {
@@ -27,6 +31,24 @@ type CounterMetric struct {
 type MemStorage struct {
 	GaugeMetrics   []GaugeMetric
 	CounterMetrics []CounterMetric
+}
+
+func (s *MemStorage) GetGaugeMetricByID(id string) (*GaugeMetric, bool) {
+	for _, metric := range s.GaugeMetrics {
+		if fmt.Sprintf("%v", metric.ID) == id { // Convert ID to string for comparison
+			return &metric, true
+		}
+	}
+	return nil, false
+}
+
+func (s *MemStorage) GetCounterMetricByID(id string) (*CounterMetric, bool) {
+	for _, metric := range s.CounterMetrics {
+		if fmt.Sprintf("%v", metric.ID) == id {
+			return &metric, true
+		}
+	}
+	return nil, false
 }
 
 func (s *MemStorage) AddGaugeMetric(metric GaugeMetric) {

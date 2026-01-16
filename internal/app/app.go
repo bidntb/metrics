@@ -1,38 +1,46 @@
 package app
 
 import (
+	"bidntb/metrics/internal/middleware"
+	"bidntb/metrics/internal/service/handler"
+	"bidntb/metrics/internal/service/metrics"
+	"bidntb/metrics/internal/storage"
 	"github.com/gin-gonic/gin"
 
-	"bidntb/metrics/internal/handler"
-	"bidntb/metrics/internal/logger"
 	"bidntb/metrics/internal/nconfig"
-	"bidntb/metrics/internal/storage"
 )
 
+func setupRouter(storage storage.StorageInterface) *gin.Engine {
+	metricsSvc := metrics.NewService(storage)
+	h := handler.NewHandler(metricsSvc)
+
+	r := gin.New()
+	r.Use(gin.Logger()) // Or your logger
+	r.Use(middleware.ErrorHandler(h.NotFoundHandler, h.BadRequestHandler))
+
+	r.GET("/", h.ListMetrics)
+	r.POST("/value/", h.GetMetricJSON)
+	r.POST("/update/", h.UpdateMetric)
+	r.POST("/update/gauge/:name", h.UpdateGauge)
+	r.POST("/update/counter/:name", h.UpdateCounter)
+	r.GET("/value/:type/:name", h.GetValue)
+
+	// Explicit error routes (as in your original/history)
+	r.POST("/update/counter", h.NotFoundHandler)
+	r.POST("/update/gauge/", h.NotFoundHandler)
+	r.POST("/update/gauge", h.NotFoundHandler)
+	r.POST("/update/:wrong", h.BadRequestHandler)
+	r.POST("/update/:wrong/*any", h.BadRequestHandler)
+
+	r.NoRoute(h.NotFoundHandler)
+
+	return r
+}
 func Run() {
-
 	serverAddress := nconfig.GetServerAddress()
-
-	router := gin.Default()
-	router.Use(logger.LoggingMiddleware())
-
 	storageInstance := storage.NewMemStorage()
 
-	h := handler.NewHandler(storageInstance)
-	router.GET("/", h.IndexHandler)
-	router.GET("/value/:type/:name", h.ValueHandler)
-
-	router.POST("/update/counter/", h.NotFoundHandler)
-	router.POST("/update/counter", h.NotFoundHandler)
-	router.POST("/update/gauge/", h.NotFoundHandler)
-	router.POST("/update/gauge", h.NotFoundHandler)
-	router.POST("/update/:wrong", h.BadRequestHandler)
-	router.POST("/update/:wrong/*any", h.BadRequestHandler)
-
-	router.POST("/update/gauge/:name/:value", h.AddGaugeHandler)
-	router.POST("/update/counter/:name/:value", h.AddCounterHandler)
-
-	router.NoRoute(h.NotFoundHandler)
+	router := setupRouter(storageInstance)
 
 	if err := router.Run(serverAddress); err != nil {
 		panic(err)

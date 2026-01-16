@@ -3,6 +3,8 @@ package reporter
 import (
 	"bidntb/metrics/internal/agent/collector"
 
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -37,5 +39,29 @@ func SendMetrics(serverURL string, metrics *Metrics) error {
 		}
 		resp.Body.Close()
 	}
+	return nil
+}
+
+func SendMetricsJSON(serverURL string, metrics *Metrics) error {
+	client := &http.Client{}
+
+	data, err := json.Marshal(metrics)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("%s/update/", serverURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	return nil
 }
