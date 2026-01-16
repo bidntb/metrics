@@ -37,10 +37,10 @@ type GetMetricRequest struct {
 }
 
 type MetricResponse struct {
-	ID    string `json:"id"`
-	MType string `json:"MType"`
-	Delta *int64 `json:"delta,omitempty"`
-	Value string `json:"value"`
+	ID    string  `json:"id"`
+	MType string  `json:"MType"`
+	Delta *int64  `json:"delta,omitempty"`
+	Value float64 `json:"value"`
 }
 
 func formatGauge(value float64) string {
@@ -107,7 +107,7 @@ func (s *Service) UpdateGauge(name string, value float64) (*MetricResponse, erro
 		return &MetricResponse{
 			ID:    fmt.Sprintf("%v", m.ID),
 			MType: "gauge",
-			Value: formatGauge(m.Value),
+			Value: m.Value,
 		}, nil
 	}
 	return nil, fmt.Errorf("gauge metric not found after update")
@@ -134,7 +134,7 @@ func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, erro
 			ID:    fmt.Sprintf("%v", m.ID),
 			MType: "counter",
 			Delta: &deltaVal,
-			Value: strconv.FormatInt(m.Value, 10),
+			Value: float64(m.Value),
 		}, nil
 	}
 	return nil, fmt.Errorf("counter metric not found after update")
@@ -145,7 +145,7 @@ func (s *Service) getGaugeByID(id string) (*MetricResponse, bool) {
 		return &MetricResponse{
 			ID:    id,
 			MType: "gauge",
-			Value: formatGauge(metric.Value),
+			Value: metric.Value,
 		}, true
 	}
 	return nil, false
@@ -158,7 +158,7 @@ func (s *Service) getCounterByID(id string) (*MetricResponse, bool) {
 			ID:    id,
 			MType: "counter",
 			Delta: &delta,
-			Value: strconv.FormatInt(metric.Value, 10),
+			Value: float64(metric.Value),
 		}, true
 	}
 	return nil, false
@@ -166,7 +166,7 @@ func (s *Service) getCounterByID(id string) (*MetricResponse, bool) {
 
 func (s *Service) getGaugeValue(name string) (string, bool) {
 	if m, ok := s.storage.GetGaugeMetric(name); ok {
-		return fmt.Sprintf("%f", formatGauge(m.Value)), true
+		return fmt.Sprintf("%s", formatGauge(m.Value)), true
 	}
 	return "", false
 }
