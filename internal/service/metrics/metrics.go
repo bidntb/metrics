@@ -148,7 +148,7 @@ func (s *Service) getCounterByID(id string) (*MetricResponse, bool) {
 
 func (s *Service) getGaugeValue(name string) (string, bool) {
 	if m, ok := s.storage.GetGaugeMetric(name); ok {
-		return fmt.Sprintf("%.3f", m.Value), true
+		return fmt.Sprintf("%.3g", m.Value), true
 	}
 	return "", false
 }
@@ -163,7 +163,7 @@ func (s *Service) getCounterValue(name string) (string, bool) {
 func (s *Service) ListAll() map[string][]string {
 	gauges := make([]string, 0)
 	for _, m := range s.storage.GetGaugeMetrics() {
-		gauges = append(gauges, fmt.Sprintf("%d: %s - %.3f", m.ID, m.MetricName, m.Value))
+		gauges = append(gauges, fmt.Sprintf("%d: %s - %.3g", m.ID, m.MetricName, m.Value))
 	}
 
 	counters := make([]string, 0)
