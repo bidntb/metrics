@@ -35,7 +35,7 @@ type MemStorage struct {
 
 func (s *MemStorage) GetGaugeMetricByID(id string) (*GaugeMetric, bool) {
 	for _, metric := range s.GaugeMetrics {
-		if fmt.Sprintf("%v", metric.ID) == id { // Convert ID to string for comparison
+		if fmt.Sprintf("%v", metric.ID) == id {
 			return &metric, true
 		}
 	}
