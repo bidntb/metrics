@@ -10,7 +10,7 @@ func ValidateCounterValue() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		value := c.Param("value")
 		if value == "" || value == "none" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid counter value"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Counter value must be integer"})
 			c.Abort()
 			return
 		}
@@ -27,7 +27,7 @@ func ValidateGaugeValue() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		value := c.Param("value")
 		if value == "" || value == "none" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid gauge value: must be number"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Gauge value must be number"})
 			c.Abort()
 			return
 		}

@@ -18,7 +18,7 @@ func NewService(storage storage.Interface) *Service {
 }
 
 type UpdateMetricRequest struct {
-	Type  string  `json:"type" binding:"required"`
+	Type  string  `json:"type" binding:"required,oneof=gauge counter"`
 	Name  string  `json:"name" binding:"required"`
 	Value float64 `json:"value" binding:"required"`
 }
@@ -37,33 +37,28 @@ type GetMetricRequest struct {
 }
 
 type MetricResponse struct {
-	ID    string  `json:"id"`
-	MType string  `json:"MType"`
-	Delta *int64  `json:"delta,omitempty"`
-	Value float64 `json:"value"`
+	ID    string `json:"id"`
+	MType string `json:"MType"`
+	Delta *int64 `json:"delta,omitempty"`
+	Value string `json:"value"`
 }
 
-func parseGauge(formatted string) float64 {
+func formatGauge(value float64) string {
+	formatted := fmt.Sprintf("%.3f", value)
+
 	parts := strings.Split(formatted, ".")
 	if len(parts) == 2 {
 		integerPart := parts[0]
 		decimalPart := strings.TrimRight(parts[1], "0")
 
 		if decimalPart == "" {
-			formatted = integerPart
-		} else {
-			formatted = integerPart + "." + decimalPart
+			return integerPart
 		}
+		return integerPart + "." + decimalPart
 	}
-
-	value, _ := strconv.ParseFloat(formatted, 64)
-	return value
+	return formatted
 }
 
-func formatGauge(value float64) float64 {
-	formatted := fmt.Sprintf("%.3f", value)
-	return parseGauge(formatted)
-}
 func (s *Service) UpdateMetric(req UpdateMetricRequest) (*MetricResponse, error) {
 	if req.Name == "" {
 		return nil, fmt.Errorf("missing name")
@@ -71,7 +66,7 @@ func (s *Service) UpdateMetric(req UpdateMetricRequest) (*MetricResponse, error)
 
 	switch req.Type {
 	case "gauge":
-		return s.UpdateGauge(req.Name, formatGauge(req.Value))
+		return s.UpdateGauge(req.Name, req.Value)
 	case "counter":
 		return s.UpdateCounter(req.Name, int64(req.Value))
 	default:
@@ -104,7 +99,7 @@ func (s *Service) UpdateGauge(name string, value float64) (*MetricResponse, erro
 		ID:         int(time.Now().UnixNano()),
 		MetricName: name,
 		Timestamp:  time.Now().Unix(),
-		Value:      formatGauge(value),
+		Value:      value,
 	}
 	s.storage.AddGaugeMetric(metric)
 
@@ -112,7 +107,7 @@ func (s *Service) UpdateGauge(name string, value float64) (*MetricResponse, erro
 		return &MetricResponse{
 			ID:    fmt.Sprintf("%v", m.ID),
 			MType: "gauge",
-			Value: m.Value,
+			Value: formatGauge(m.Value),
 		}, nil
 	}
 	return nil, fmt.Errorf("gauge metric not found after update")
@@ -139,7 +134,7 @@ func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, erro
 			ID:    fmt.Sprintf("%v", m.ID),
 			MType: "counter",
 			Delta: &deltaVal,
-			Value: float64(m.Value),
+			Value: strconv.FormatInt(m.Value, 10),
 		}, nil
 	}
 	return nil, fmt.Errorf("counter metric not found after update")
@@ -150,7 +145,7 @@ func (s *Service) getGaugeByID(id string) (*MetricResponse, bool) {
 		return &MetricResponse{
 			ID:    id,
 			MType: "gauge",
-			Value: metric.Value,
+			Value: formatGauge(metric.Value),
 		}, true
 	}
 	return nil, false
@@ -163,7 +158,7 @@ func (s *Service) getCounterByID(id string) (*MetricResponse, bool) {
 			ID:    id,
 			MType: "counter",
 			Delta: &delta,
-			Value: float64(metric.Value),
+			Value: strconv.FormatInt(metric.Value, 10),
 		}, true
 	}
 	return nil, false
@@ -171,14 +166,14 @@ func (s *Service) getCounterByID(id string) (*MetricResponse, bool) {
 
 func (s *Service) getGaugeValue(name string) (string, bool) {
 	if m, ok := s.storage.GetGaugeMetric(name); ok {
-		return fmt.Sprintf("%.3f", formatGauge(m.Value)), true
+		return fmt.Sprintf("%f", formatGauge(m.Value)), true
 	}
 	return "", false
 }
 
 func (s *Service) getCounterValue(name string) (string, bool) {
 	if m, ok := s.storage.GetCounterMetric(name); ok {
-		return fmt.Sprintf("%d", m.Value), true
+		return strconv.FormatInt(m.Value, 10), true
 	}
 	return "", false
 }
@@ -186,7 +181,7 @@ func (s *Service) getCounterValue(name string) (string, bool) {
 func (s *Service) ListAll() map[string][]string {
 	gauges := make([]string, 0)
 	for _, m := range s.storage.GetGaugeMetrics() {
-		formatted := fmt.Sprintf("%.3f", formatGauge(m.Value))
+		formatted := formatGauge(m.Value)
 		gauges = append(gauges, fmt.Sprintf("%d: %s - %s", m.ID, m.MetricName, formatted))
 	}
 
