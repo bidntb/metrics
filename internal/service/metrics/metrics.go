@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"bidntb/metrics/internal/storage"
@@ -31,7 +33,7 @@ type UpdateGaugeRequest struct {
 
 type GetMetricRequest struct {
 	ID    string `json:"id" binding:"required"`
-	MType string `json:"MType" binding:"required,oneof=gauge counter"`
+	MType string `json:"MType" binding:"required"`
 }
 
 type MetricResponse struct {
@@ -41,6 +43,27 @@ type MetricResponse struct {
 	Value float64 `json:"value"`
 }
 
+func parseGauge(formatted string) float64 {
+	parts := strings.Split(formatted, ".")
+	if len(parts) == 2 {
+		integerPart := parts[0]
+		decimalPart := strings.TrimRight(parts[1], "0")
+
+		if decimalPart == "" {
+			formatted = integerPart
+		} else {
+			formatted = integerPart + "." + decimalPart
+		}
+	}
+
+	value, _ := strconv.ParseFloat(formatted, 64)
+	return value
+}
+
+func formatGauge(value float64) float64 {
+	formatted := fmt.Sprintf("%.3f", value)
+	return parseGauge(formatted)
+}
 func (s *Service) UpdateMetric(req UpdateMetricRequest) (*MetricResponse, error) {
 	if req.Name == "" {
 		return nil, fmt.Errorf("missing name")
@@ -48,7 +71,7 @@ func (s *Service) UpdateMetric(req UpdateMetricRequest) (*MetricResponse, error)
 
 	switch req.Type {
 	case "gauge":
-		return s.UpdateGauge(req.Name, req.Value)
+		return s.UpdateGauge(req.Name, formatGauge(req.Value))
 	case "counter":
 		return s.UpdateCounter(req.Name, int64(req.Value))
 	default:
@@ -81,7 +104,7 @@ func (s *Service) UpdateGauge(name string, value float64) (*MetricResponse, erro
 		ID:         int(time.Now().UnixNano()),
 		MetricName: name,
 		Timestamp:  time.Now().Unix(),
-		Value:      value,
+		Value:      formatGauge(value),
 	}
 	s.storage.AddGaugeMetric(metric)
 
