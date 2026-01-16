@@ -2,7 +2,7 @@ package storage
 
 import "fmt"
 
-type StorageInterface interface {
+type Interface interface {
 	AddGaugeMetric(metric GaugeMetric)
 	AddCounterMetric(metric CounterMetric)
 	GetGaugeMetric(name string) (*GaugeMetric, bool)
@@ -86,7 +86,7 @@ func (s *MemStorage) GetCounterMetrics() []CounterMetric {
 	return s.CounterMetrics
 }
 
-func NewMemStorage() StorageInterface {
+func NewMemStorage() Interface {
 	return &MemStorage{
 		GaugeMetrics:   make([]GaugeMetric, 0),
 		CounterMetrics: make([]CounterMetric, 0),

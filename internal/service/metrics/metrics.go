@@ -8,10 +8,10 @@ import (
 )
 
 type Service struct {
-	storage storage.StorageInterface
+	storage storage.Interface
 }
 
-func NewService(storage storage.StorageInterface) *Service {
+func NewService(storage storage.Interface) *Service {
 	return &Service{storage: storage}
 }
 

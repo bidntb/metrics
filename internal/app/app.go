@@ -12,7 +12,7 @@ import (
 	"bidntb/metrics/internal/nconfig"
 )
 
-func setupRouter(storage storage.StorageInterface) *gin.Engine {
+func setupRouter(storage storage.Interface) *gin.Engine {
 	metricsSvc := metrics.NewService(storage)
 	h := handler.NewHandler(metricsSvc)
 
