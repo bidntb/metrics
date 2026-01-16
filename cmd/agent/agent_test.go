@@ -66,7 +66,7 @@ func TestSendMetrics(t *testing.T) {
 	}))
 	defer server.Close()
 
-	err := reporter.SendMetrics(server.URL, metrics)
+	err := reporter.SendMetricsJSON(server.URL, metrics)
 	if err != nil {
 		t.Errorf("sendMetrics() returned unexpected error: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestSendMetricsError(t *testing.T) {
 	metrics := collector.NewMetrics()
 	metrics.Gauges["TestGauge"] = 123.45
 
-	err := reporter.SendMetrics("http://localhost:12345", metrics)
+	err := reporter.SendMetricsJSON("http://localhost:12345", metrics)
 	if err == nil {
 		t.Error("Expected error when sending to non-existent server, got nil")
 	}
