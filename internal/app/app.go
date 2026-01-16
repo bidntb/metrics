@@ -21,8 +21,8 @@ func setupRouter(storage storage.StorageInterface) *gin.Engine {
 	r.GET("/", h.ListMetrics)
 	r.POST("/value/", h.GetMetricJSON)
 	r.POST("/update/", h.UpdateMetric)
-	r.POST("/update/gauge/:name", h.UpdateGauge)
-	r.POST("/update/counter/:name", h.UpdateCounter)
+	r.POST("/update/gauge/:name/:value", h.UpdateGauge)
+	r.POST("/update/counter/:name/:value", h.UpdateCounter)
 	r.GET("/value/:type/:name", h.GetValue)
 
 	// Explicit error routes (as in your original/history)
