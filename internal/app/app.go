@@ -23,7 +23,7 @@ func setupRouter(storage storage.StorageInterface) *gin.Engine {
 	r.GET("/", h.ListMetrics)
 	r.POST("/value/", h.GetMetricJSON)
 	r.POST("/update/", h.UpdateMetric)
-	r.POST("/update/gauge/:name/:value", h.UpdateGauge)
+	r.POST("/update/gauge/:name/:value", middleware.ValidateGaugeValue(), h.UpdateGauge)
 	r.POST("/update/counter/:name/:value", middleware.ValidateCounterValue(), h.UpdateCounter)
 	r.GET("/value/:type/:name", h.GetValue)
 
