@@ -114,7 +114,7 @@ func (s *Service) UpdateGauge(name string, value float64) (*MetricResponse, erro
 }
 
 func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, error) {
-	last, exists := s.storage.GetCounterMetric(name)
+	last, exists := s.storage.GetLastCounter(name)
 	value := delta
 	if exists {
 		value = last.Value + delta
@@ -128,7 +128,7 @@ func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, erro
 	}
 	s.storage.AddCounterMetric(metric)
 
-	if m, found := s.storage.GetCounterMetric(name); found {
+	if m, found := s.storage.GetLastCounter(name); found {
 		deltaVal := m.Value
 		return &MetricResponse{
 			ID:    fmt.Sprintf("%v", m.ID),
@@ -172,7 +172,7 @@ func (s *Service) getGaugeValue(name string) (string, bool) {
 }
 
 func (s *Service) getCounterValue(name string) (string, bool) {
-	if m, ok := s.storage.GetCounterMetric(name); ok {
+	if m, ok := s.storage.GetLastCounter(name); ok {
 		return strconv.FormatInt(m.Value, 10), true
 	}
 	return "", false
@@ -186,7 +186,7 @@ func (s *Service) ListAll() map[string][]string {
 	}
 
 	counters := make([]string, 0)
-	for _, m := range s.storage.GetCounterMetrics() {
+	for _, m := range s.storage.GetAllCounterMetrics() {
 		counters = append(counters, fmt.Sprintf("%d: %s - %d", m.ID, m.MetricName, m.Value))
 	}
 

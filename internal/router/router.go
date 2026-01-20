@@ -3,15 +3,13 @@ package router
 import (
 	"bidntb/metrics/internal/middleware"
 	"bidntb/metrics/internal/service/handler"
-	"bidntb/metrics/internal/service/logger"
-
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter(h *handler.Handler) *gin.Engine {
 	r := gin.New()
 
-	r.Use(logger.LoggingMiddleware())
+	r.Use(middleware.LoggingMiddleware())
 	r.Use(middleware.ErrorHandler(h.NotFoundHandler, h.BadRequestHandler))
 
 	r.GET("/", h.ListMetrics)
