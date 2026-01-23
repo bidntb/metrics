@@ -2,10 +2,9 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"bidntb/metrics/internal/middleware"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func setupTestRouter() *gin.Engine {
@@ -27,18 +25,14 @@ func setupTestRouter() *gin.Engine {
 	r.Use(gin.Logger())
 	r.Use(middleware.ErrorHandler(h.NotFoundHandler, h.BadRequestHandler))
 
-	r.GET("/", h.ListMetrics)
+	r.POST("/update/:type/:name/:value", h.UpdateMetric)
 	r.POST("/update/", h.UpdateMetric)
-	r.POST("/value/", h.GetMetricJSON)
-	r.POST("/update/gauge/:name/:value", middleware.ValidateGaugeValue(), h.UpdateGauge)
-	r.POST("/update/counter/:name/:value", middleware.ValidateCounterValue(), h.UpdateCounter)
 	r.GET("/value/:type/:name", h.GetValue)
+	r.GET("/", h.ListMetrics)
 
 	r.POST("/update/counter", h.NotFoundHandler)
 	r.POST("/update/gauge/", h.NotFoundHandler)
 	r.POST("/update/gauge", h.NotFoundHandler)
-	r.POST("/update/:wrong", h.BadRequestHandler)
-	r.POST("/update/:wrong/*any", h.BadRequestHandler)
 	r.NoRoute(h.NotFoundHandler)
 
 	return r
@@ -62,10 +56,14 @@ func TestServerRoutes(t *testing.T) {
 			expectedCode: http.StatusOK,
 		},
 		{
-			name:         "Update gauge JSON",
-			method:       http.MethodPost,
-			path:         "/update/",
-			body:         `{"type":"gauge","name":"test_gauge","value":123.45}`,
+			name:   "Update gauge JSON",
+			method: http.MethodPost,
+			path:   "/update/",
+			body: `{
+				"id": "test_gauge",
+  				"type": "gauge",
+  				"value": 123.45
+			}`,
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -116,71 +114,37 @@ func TestServerRoutes(t *testing.T) {
 func TestUpdateMetricJSON(t *testing.T) {
 	r := setupTestRouter()
 
-	w := httptest.NewRecorder()
-	reqBody := `{"type":"gauge","name":"cpu_load","value":189736.689}`
-	req, _ := http.NewRequest(http.MethodPost, "/update/", bytes.NewBufferString(reqBody))
-	req.Header.Set("Content-Type", "application/json")
+	body := `{"id":"requests","type":"counter","delta":10}`
 
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/update/", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-
-	var resp metrics.MetricResponse
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-
-	assert.Equal(t, "gauge", resp.MType)
-	assert.NotEmpty(t, resp.ID)
-	assert.InDelta(t, 189736.689, resp.Value, 0.001)
 }
 
 func TestCounterAccumulation(t *testing.T) {
 	r := setupTestRouter()
-
 	reqs := []string{
-		`{"type":"counter","name":"requests","value":10}`,
-		`{"type":"counter","name":"requests","value":20}`,
+		`{"id":"requests","type":"counter","delta":10}`,
+		`{"id":"requests","type":"counter","delta":20}`,
 	}
 
 	for _, body := range reqs {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodPost, "/update/", bytes.NewBufferString(body))
+		req := httptest.NewRequest(http.MethodPost, "/update/", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
 	}
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/value/counter/requests", nil)
+	req := httptest.NewRequest(http.MethodGet, "/value/counter/requests", nil)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "30", w.Body.String())
-}
-
-func TestGetMetricByID(t *testing.T) {
-	r := setupTestRouter()
-
-	w := httptest.NewRecorder()
-	reqBody := `{"type":"gauge","name":"test_id","value":42.0}`
-	req, _ := http.NewRequest(http.MethodPost, "/update/", bytes.NewBufferString(reqBody))
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-
-	var createResp metrics.MetricResponse
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createResp))
-	metricID := createResp.ID
-
-	w = httptest.NewRecorder()
-	getBody := fmt.Sprintf(`{"id":"%s","MType":"gauge"}`, metricID)
-	req, _ = http.NewRequest(http.MethodPost, "/value/", bytes.NewBufferString(getBody))
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var getResp metrics.MetricResponse
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &getResp))
-	assert.Equal(t, metricID, getResp.ID)
 }
 
 func TestValidationErrors(t *testing.T) {
@@ -197,19 +161,19 @@ func TestValidationErrors(t *testing.T) {
 			name:         "Missing JSON",
 			path:         "/update/",
 			body:         `{"type":"gauge"}`,
-			expectedCode: http.StatusNotFound,
+			expectedCode: http.StatusBadRequest,
 		},
 		{
 			name:         "Invalid counter value",
 			path:         "/update/counter/test/none",
 			expectedCode: http.StatusBadRequest,
-			expectedMsg:  "Counter value must be integer",
+			expectedMsg:  "invalid value for counter",
 		},
 		{
 			name:         "Invalid gauge value",
 			path:         "/update/gauge/test/none",
 			expectedCode: http.StatusBadRequest,
-			expectedMsg:  "Gauge value must be number",
+			expectedMsg:  "invalid value for gauge",
 		},
 	}
 

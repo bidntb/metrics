@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -19,88 +18,121 @@ func NewHandler(svc *metrics.Service) *Handler {
 }
 
 func (h *Handler) UpdateMetric(c *gin.Context) {
+	mtype := c.Param("type")
+	name := c.Param("name")
+	valueStr := c.Param("value")
+
+	if mtype != "" && name != "" && valueStr != "" {
+		if mtype == "gauge" {
+			value, err := strconv.ParseFloat(valueStr, 64)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid value for gauge"})
+				return
+			}
+			resp, err := h.svc.UpdateGauge(name, value)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, resp)
+			return
+		} else if mtype == "counter" {
+			delta, err := strconv.ParseInt(valueStr, 10, 64)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid value for counter"})
+				return
+			}
+			resp, err := h.svc.UpdateCounter(name, delta)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, resp)
+			return
+		}
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid metric type"})
+		return
+	}
+
 	var req metrics.UpdateMetricRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid JSON body"})
+		return
+	}
+	if req.ID == "" || req.MType == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id or type"})
 		return
 	}
 
-	resp, err := h.svc.UpdateMetric(req)
-	if err != nil {
-		c.Error(err)
+	switch req.MType {
+	case "gauge":
+		if req.Value == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "value required for gauge"})
+			return
+		}
+		resp, err := h.svc.UpdateGauge(req.ID, *req.Value)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, resp)
+		return
+
+	case "counter":
+		if req.Delta == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "delta required for counter"})
+			return
+		}
+		resp, err := h.svc.UpdateCounter(req.ID, *req.Delta)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, resp)
+		return
+
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid type: must be gauge or counter"})
 		return
 	}
-
-	c.JSON(http.StatusOK, resp)
-}
-
-func (h *Handler) UpdateGauge(c *gin.Context) {
-	name := c.Param("name")
-	if name == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Missing name"})
-		return
-	}
-
-	var req metrics.UpdateGaugeRequest
-	if err := c.ShouldBindJSON(&req); err == nil {
-		h.svc.UpdateGauge(name, req.Value)
-		c.Status(http.StatusOK)
-		return
-	}
-
-	valueStr := c.Param("value")
-	value, err := strconv.ParseFloat(valueStr, 64)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-	h.svc.UpdateGauge(name, value)
-	c.Status(http.StatusOK)
-}
-
-func (h *Handler) UpdateCounter(c *gin.Context) {
-	name := c.Param("name")
-	if name == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Missing name"})
-		return
-	}
-
-	var req metrics.UpdateCounterRequest
-	if err := c.ShouldBindJSON(&req); err == nil {
-		h.svc.UpdateCounter(name, req.Delta)
-		c.Status(http.StatusOK)
-		return
-	}
-
-	valueStr := c.Param("value")
-	value, err := strconv.ParseInt(valueStr, 10, 64)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-	h.svc.UpdateCounter(name, value)
-	c.Status(http.StatusOK)
 }
 
 func (h *Handler) GetValue(c *gin.Context) {
 	mtype := c.Param("type")
 	name := c.Param("name")
+
 	if mtype == "" || name == "" {
-		c.Error(fmt.Errorf("missing params"))
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing type or name"})
 		return
 	}
-	if val, ok := h.svc.GetMetricValue(mtype, name); ok {
-		c.String(http.StatusOK, val)
+
+	val, ok := h.svc.GetMetricValue(mtype, name)
+	if !ok {
+		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	c.Status(http.StatusNotFound)
+	c.String(http.StatusOK, val)
+}
+
+func (h *Handler) GetMetricJSON(c *gin.Context) {
+	var req metrics.GetMetricRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid JSON body"})
+		return
+	}
+	resp, err := h.svc.GetMetric(req)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *Handler) ListMetrics(c *gin.Context) {
-	metrics := h.svc.ListAll()
+	metricsMap := h.svc.ListAll()
 	c.JSON(http.StatusOK, gin.H{
-		"gauge":   metrics["gauge"],
-		"counter": metrics["counter"],
+		"gauge":   metricsMap["gauge"],
+		"counter": metricsMap["counter"],
 	})
 }
 
@@ -110,18 +142,4 @@ func (h *Handler) NotFoundHandler(c *gin.Context) {
 
 func (h *Handler) BadRequestHandler(c *gin.Context) {
 	c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
-}
-
-func (h *Handler) GetMetricJSON(c *gin.Context) {
-	var req metrics.GetMetricRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(err)
-		return
-	}
-
-	if resp, found := h.svc.GetMetric(req); found {
-		c.JSON(http.StatusOK, resp)
-		return
-	}
-	c.Status(http.StatusNotFound)
 }

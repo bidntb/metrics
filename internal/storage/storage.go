@@ -3,16 +3,12 @@ package storage
 import "sync"
 
 type Interface interface {
-	AddGaugeMetric(metric GaugeMetric)
-	AddCounterMetric(metric CounterMetric)
+	AddGauge(metric GaugeMetric)
+	AddCounter(metric CounterMetric)
 	GetLastGauge(name string) (*GaugeMetric, bool)
 	GetLastCounter(name string) (*CounterMetric, bool)
-	GetAllGaugeMetrics() []GaugeMetric
-	GetAllCounterMetrics() []CounterMetric
-}
-
-type Metric interface {
-	GetName() string
+	GetAllGauge() []GaugeMetric
+	GetAllCounter() []CounterMetric
 }
 
 type GaugeMetric struct {
@@ -48,14 +44,14 @@ func NewMemStorage() Interface {
 	}
 }
 
-func (s *MemStorage) AddGaugeMetric(metric GaugeMetric) {
+func (s *MemStorage) AddGauge(metric GaugeMetric) {
 	s.gaugeMu.Lock()
 	defer s.gaugeMu.Unlock()
 
 	s.gauges[metric.MetricName] = append(s.gauges[metric.MetricName], metric)
 }
 
-func (s *MemStorage) AddCounterMetric(metric CounterMetric) {
+func (s *MemStorage) AddCounter(metric CounterMetric) {
 	s.counterMu.Lock()
 	defer s.counterMu.Unlock()
 
@@ -86,7 +82,7 @@ func (s *MemStorage) GetLastCounter(name string) (*CounterMetric, bool) {
 	return &last, true
 }
 
-func (s *MemStorage) GetAllGaugeMetrics() []GaugeMetric {
+func (s *MemStorage) GetAllGauge() []GaugeMetric {
 	s.gaugeMu.RLock()
 	defer s.gaugeMu.RUnlock()
 
@@ -97,7 +93,7 @@ func (s *MemStorage) GetAllGaugeMetrics() []GaugeMetric {
 	return all
 }
 
-func (s *MemStorage) GetAllCounterMetrics() []CounterMetric {
+func (s *MemStorage) GetAllCounter() []CounterMetric {
 	s.counterMu.RLock()
 	defer s.counterMu.RUnlock()
 

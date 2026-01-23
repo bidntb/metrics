@@ -9,6 +9,13 @@ import (
 	"bidntb/metrics/internal/storage"
 )
 
+type Metrics struct {
+	ID    string   `json:"id"`
+	MType string   `json:"type"`
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
+}
+
 type Service struct {
 	storage storage.Interface
 }
@@ -18,39 +25,30 @@ func NewService(storage storage.Interface) *Service {
 }
 
 type UpdateMetricRequest struct {
-	Type  string  `json:"type" binding:"required,oneof=gauge counter"`
-	Name  string  `json:"name" binding:"required"`
-	Value float64 `json:"value" binding:"required"`
-}
-
-type UpdateCounterRequest struct {
-	Delta int64 `json:"value" binding:"required"`
-}
-
-type UpdateGaugeRequest struct {
-	Value float64 `json:"value" binding:"required"`
+	ID    string   `json:"id"` // имя метрики
+	MType string   `json:"type"`
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
 }
 
 type GetMetricRequest struct {
-	ID    string `json:"id" binding:"required"`
+	ID    string `json:"id" binding:"required"` // имя метрики
 	MType string `json:"MType" binding:"required"`
 }
 
 type MetricResponse struct {
-	ID    string  `json:"id"`
-	MType string  `json:"MType"`
-	Delta *int64  `json:"delta,omitempty"`
-	Value float64 `json:"value"`
+	ID    string `json:"id"` // имя метрики
+	MType string `json:"MType"`
+	Delta int64  `json:"delta,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 func formatGauge(value float64) string {
 	formatted := fmt.Sprintf("%.3f", value)
-
 	parts := strings.Split(formatted, ".")
 	if len(parts) == 2 {
 		integerPart := parts[0]
 		decimalPart := strings.TrimRight(parts[1], "0")
-
 		if decimalPart == "" {
 			return integerPart
 		}
@@ -59,61 +57,18 @@ func formatGauge(value float64) string {
 	return formatted
 }
 
-func (s *Service) UpdateMetric(req UpdateMetricRequest) (*MetricResponse, error) {
-	if req.Name == "" {
-		return nil, fmt.Errorf("missing name")
-	}
-
-	switch req.Type {
-	case "gauge":
-		return s.UpdateGauge(req.Name, req.Value)
-	case "counter":
-		return s.UpdateCounter(req.Name, int64(req.Value))
-	default:
-		return nil, fmt.Errorf("invalid metric type: %s", req.Type)
-	}
-}
-
-func (s *Service) GetMetric(req GetMetricRequest) (*MetricResponse, bool) {
-	switch req.MType {
-	case "gauge":
-		return s.getGaugeByID(req.ID)
-	case "counter":
-		return s.getCounterByID(req.ID)
-	}
-	return nil, false
-}
-
-func (s *Service) GetMetricValue(mtype, name string) (string, bool) {
-	switch mtype {
-	case "gauge":
-		return s.getGaugeValue(name)
-	case "counter":
-		return s.getCounterValue(name)
-	}
-	return "", false
-}
-
-func (s *Service) UpdateGauge(name string, value float64) (*MetricResponse, error) {
+func (s *Service) createGauge(name string, value float64) storage.GaugeMetric {
 	metric := storage.GaugeMetric{
 		ID:         int(time.Now().UnixNano()),
 		MetricName: name,
 		Timestamp:  time.Now().Unix(),
 		Value:      value,
 	}
-	s.storage.AddGaugeMetric(metric)
-
-	if m, found := s.storage.GetGaugeMetric(name); found {
-		return &MetricResponse{
-			ID:    fmt.Sprintf("%v", m.ID),
-			MType: "gauge",
-			Value: m.Value,
-		}, nil
-	}
-	return nil, fmt.Errorf("gauge metric not found after update")
+	s.storage.AddGauge(metric)
+	return metric
 }
 
-func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, error) {
+func (s *Service) createCounter(name string, delta int64) storage.CounterMetric {
 	last, exists := s.storage.GetLastCounter(name)
 	value := delta
 	if exists {
@@ -126,46 +81,91 @@ func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, erro
 		Timestamp:  time.Now().Unix(),
 		Value:      value,
 	}
-	s.storage.AddCounterMetric(metric)
+	s.storage.AddCounter(metric)
+	return metric
+}
 
-	if m, found := s.storage.GetLastCounter(name); found {
-		deltaVal := m.Value
+func (s *Service) UpdateMetric(req UpdateMetricRequest) (*MetricResponse, error) {
+	if req.ID == "" {
+		return nil, fmt.Errorf("missing name")
+	}
+
+	switch req.MType {
+	case "gauge":
+		return s.UpdateGauge(req.ID, *req.Value)
+	case "counter":
+		return s.UpdateCounter(req.ID, *req.Delta)
+	default:
+		return nil, fmt.Errorf("invalid metric type: %s", req.MType)
+	}
+}
+
+func (s *Service) UpdateGauge(name string, value float64) (*MetricResponse, error) {
+	metric := s.createGauge(name, value)
+	valueFloat := fmt.Sprintf("%f", metric.Value)
+
+	return &MetricResponse{
+		ID:    fmt.Sprintf("%v", metric.ID),
+		MType: "gauge",
+		Value: valueFloat,
+	}, nil
+}
+
+func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, error) {
+	s.createCounter(name, delta)
+	newMetric, exist := s.storage.GetLastCounter(name)
+	if !exist {
+		return nil, fmt.Errorf("missing name")
+	}
+
+	newValue := newMetric.Value
+	return &MetricResponse{
+		ID:    fmt.Sprintf("%v", name),
+		MType: "counter",
+		Delta: newValue,
+	}, nil
+}
+
+func (s *Service) GetMetric(req GetMetricRequest) (*MetricResponse, error) {
+	switch req.MType {
+	case "gauge":
+		value, err := s.getGaugeValue(req.ID)
+		if err {
+			return nil, fmt.Errorf("coudn't get value from storage")
+		}
+		valueFloat := fmt.Sprintf("%f", value)
 		return &MetricResponse{
-			ID:    fmt.Sprintf("%v", m.ID),
-			MType: "counter",
-			Delta: &deltaVal,
-			Value: float64(m.Value),
+			ID:    fmt.Sprintf("%v", req.ID),
+			MType: "gauge",
+			Value: valueFloat,
+		}, nil
+	case "counter":
+		value, err := s.getCounterValue(req.ID)
+		if err {
+			return nil, fmt.Errorf("coudn't get value from storage")
+		}
+		return &MetricResponse{
+			ID:    fmt.Sprintf("%v", req.ID),
+			MType: "gauge",
+			Value: value,
 		}, nil
 	}
-	return nil, fmt.Errorf("counter metric not found after update")
+
+	return nil, fmt.Errorf("neither gauge nor couter")
 }
 
-func (s *Service) getGaugeByID(id string) (*MetricResponse, bool) {
-	if metric, found := s.storage.GetGaugeMetricByID(id); found {
-		return &MetricResponse{
-			ID:    id,
-			MType: "gauge",
-			Value: metric.Value,
-		}, true
+func (s *Service) GetMetricValue(mtype, name string) (string, bool) {
+	switch mtype {
+	case "gauge":
+		return s.getGaugeValue(name)
+	case "counter":
+		return s.getCounterValue(name)
 	}
-	return nil, false
-}
-
-func (s *Service) getCounterByID(id string) (*MetricResponse, bool) {
-	if metric, found := s.storage.GetCounterMetricByID(id); found {
-		delta := metric.Value
-		return &MetricResponse{
-			ID:    id,
-			MType: "counter",
-			Delta: &delta,
-			Value: float64(metric.Value),
-		}, true
-	}
-	return nil, false
+	return "", false
 }
 
 func (s *Service) getGaugeValue(name string) (string, bool) {
-	if m, ok := s.storage.GetGaugeMetric(name); ok {
+	if m, ok := s.storage.GetLastGauge(name); ok {
 		return formatGauge(m.Value), true
 	}
 	return "", false
@@ -180,13 +180,13 @@ func (s *Service) getCounterValue(name string) (string, bool) {
 
 func (s *Service) ListAll() map[string][]string {
 	gauges := make([]string, 0)
-	for _, m := range s.storage.GetGaugeMetrics() {
+	for _, m := range s.storage.GetAllGauge() {
 		formatted := formatGauge(m.Value)
 		gauges = append(gauges, fmt.Sprintf("%d: %s - %s", m.ID, m.MetricName, formatted))
 	}
 
 	counters := make([]string, 0)
-	for _, m := range s.storage.GetAllCounterMetrics() {
+	for _, m := range s.storage.GetAllCounter() {
 		counters = append(counters, fmt.Sprintf("%d: %s - %d", m.ID, m.MetricName, m.Value))
 	}
 
