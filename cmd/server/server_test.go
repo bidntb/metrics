@@ -28,6 +28,7 @@ func setupTestRouter() *gin.Engine {
 	r.POST("/update/:type/:name/:value", h.UpdateMetric)
 	r.POST("/update/", h.UpdateMetric)
 	r.GET("/value/:type/:name", h.GetValue)
+	r.POST("/value/", h.GetMetricJSON)
 	r.GET("/", h.ListMetrics)
 
 	r.POST("/update/counter", h.NotFoundHandler)
@@ -146,6 +147,21 @@ func TestCounterAccumulation(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "30", w.Body.String())
 }
+func TestGetMetricJSON(t *testing.T) {
+	r := setupTestRouter()
+	jsonBody := `{"id":"testGauge","MType":"gauge"}`
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/value/",
+		strings.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "testGauge")
+	assert.Contains(t, w.Body.String(), "gauge")
+}
 
 func TestValidationErrors(t *testing.T) {
 	r := setupTestRouter()
@@ -193,4 +209,5 @@ func TestValidationErrors(t *testing.T) {
 			}
 		})
 	}
+
 }

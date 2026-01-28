@@ -14,8 +14,8 @@ func SetupRouter(h *handler.Handler) *gin.Engine {
 
 	r.POST("/update/:type/:name/:value", h.UpdateMetric)
 	r.POST("/update/", h.UpdateMetric)
-	r.GET("/value/:type/:name", h.GetValue)
 	r.POST("/value/", h.GetMetricJSON)
+	r.GET("/value/:type/:name", h.GetValue)
 	r.GET("/", h.ListMetrics)
 
 	r.POST("/update/counter", h.NotFoundHandler)
