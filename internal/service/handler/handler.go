@@ -121,14 +121,16 @@ func (h *Handler) GetValue(c *gin.Context) {
 func (h *Handler) GetMetricJSON(c *gin.Context) {
 	var req metrics.GetMetricRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid JSON body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON: " + err.Error()})
 		return
 	}
+
 	resp, err := h.svc.GetMetric(req)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, resp)
 }
 
