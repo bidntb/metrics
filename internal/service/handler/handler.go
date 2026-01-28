@@ -108,7 +108,8 @@ func (h *Handler) GetValue(c *gin.Context) {
 
 	val, ok := h.svc.GetMetricValue(mtype, name)
 	if val == "" {
-		c.String(http.StatusNotFound, "")
+		c.AbortWithStatus(http.StatusNotFound)
+		return
 	}
 	if !ok {
 		c.AbortWithStatus(http.StatusNotFound)
