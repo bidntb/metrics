@@ -21,9 +21,6 @@ func SetupRouter(h *handler.Handler) *gin.Engine {
 	r.POST("/update/counter", h.NotFoundHandler)
 	r.POST("/update/gauge/", h.NotFoundHandler)
 	r.POST("/update/gauge", h.NotFoundHandler)
-	r.POST("/update/:wrong", h.BadRequestHandler)
-	r.POST("/update/:wrong/*any", h.BadRequestHandler)
-
 	r.NoRoute(h.NotFoundHandler)
 
 	return r
