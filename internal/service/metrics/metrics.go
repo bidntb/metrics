@@ -133,7 +133,7 @@ func (s *Service) GetMetric(req GetMetricRequest) (*MetricResponse, error) {
 		if err {
 			return nil, fmt.Errorf("coudn't get value from storage")
 		}
-		valueFloat := fmt.Sprintf("%f", value)
+		valueFloat := fmt.Sprintf("%s", value)
 		return &MetricResponse{
 			ID:    fmt.Sprintf("%v", req.ID),
 			MType: "gauge",
