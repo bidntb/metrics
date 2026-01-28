@@ -87,7 +87,7 @@ func (s *Service) createCounter(name string, delta int64) storage.CounterMetric 
 
 func (s *Service) UpdateMetric(req UpdateMetricRequest) (*MetricResponse, error) {
 	if req.ID == "" {
-		return nil, fmt.Errorf("missing name")
+		return nil, fmt.Errorf("missing metrics name")
 	}
 
 	switch req.MType {
