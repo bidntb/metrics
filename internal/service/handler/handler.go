@@ -126,11 +126,20 @@ func (h *Handler) GetMetricJSON(c *gin.Context) {
 	}
 
 	resp, err := h.svc.GetMetric(req)
+
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error: couldn't get metric from svc": err.Error()})
 		return
 	}
-
+	if resp.Value == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"id":    resp.ID,
+			"MType": resp.MType,
+			"Value": nil,
+			"Delta": nil,
+		})
+		return
+	}
 	c.JSON(http.StatusOK, resp)
 }
 

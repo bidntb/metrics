@@ -129,9 +129,13 @@ func (s *Service) UpdateCounter(name string, delta int64) (*MetricResponse, erro
 func (s *Service) GetMetric(req GetMetricRequest) (*MetricResponse, error) {
 	switch req.MType {
 	case "gauge":
-		value, err := s.getGaugeValue(req.ID)
-		if err {
-			return nil, fmt.Errorf("coudn't get value from storage")
+		value, ok := s.getGaugeValue(req.ID)
+		if !ok {
+			return &MetricResponse{
+				ID:    fmt.Sprintf("%v", req.ID),
+				MType: "gauge",
+				Value: "",
+			}, nil
 		}
 		return &MetricResponse{
 			ID:    fmt.Sprintf("%v", req.ID),
@@ -139,13 +143,17 @@ func (s *Service) GetMetric(req GetMetricRequest) (*MetricResponse, error) {
 			Value: value,
 		}, nil
 	case "counter":
-		value, err := s.getCounterValue(req.ID)
-		if err {
-			return nil, fmt.Errorf("coudn't get value from storage")
+		value, ok := s.getCounterValue(req.ID)
+		if !ok {
+			return &MetricResponse{
+				ID:    fmt.Sprintf("%v", req.ID),
+				MType: "gauge",
+				Value: "",
+			}, fmt.Errorf("coudn't get value from storage")
 		}
 		return &MetricResponse{
 			ID:    fmt.Sprintf("%v", req.ID),
-			MType: "gauge",
+			MType: "counter",
 			Value: value,
 		}, nil
 	}
