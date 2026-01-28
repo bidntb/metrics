@@ -50,18 +50,9 @@ func (h *Handler) GetValue(c *gin.Context) {
 
 	if val, ok := h.svc.GetMetricValue(mtype, name); ok && val != "" {
 		c.String(http.StatusOK, val)
+	} else {
+		c.Status(http.StatusNotFound)
 	}
-
-	if val, ok := h.svc.GetMetricValue(mtype, name); ok && val == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"id":    name,
-			"MType": mtype,
-			"Value": nil,
-			"Delta": nil,
-		})
-		return
-	}
-	c.Status(http.StatusNotFound)
 }
 
 func (h *Handler) GetMetricJSON(c *gin.Context) {
@@ -74,6 +65,15 @@ func (h *Handler) GetMetricJSON(c *gin.Context) {
 	resp, err := h.svc.GetMetric(req)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	if resp.Value == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"id":    resp.ID,
+			"MType": resp.MType,
+			"Value": nil,
+			"Delta": nil,
+		})
 		return
 	}
 
