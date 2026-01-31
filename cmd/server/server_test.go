@@ -149,14 +149,18 @@ func TestCounterAccumulation(t *testing.T) {
 }
 func TestGetMetricJSON(t *testing.T) {
 	r := setupTestRouter()
-	jsonBody := `{"id":"testGauge","MType":"gauge"}`
+	jsonBodyUpdate := `{"id":"testGauge","type":"gauge","value":20}`
+	jsonBody := `{"id":"testGauge","type":"gauge"}`
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/value/",
+	req1 := httptest.NewRequest(http.MethodPost, "/update/", strings.NewReader(jsonBodyUpdate))
+	req2 := httptest.NewRequest(http.MethodPost, "/value/",
 		strings.NewReader(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Content-Type", "application/json")
 
-	r.ServeHTTP(w, req)
+	r.ServeHTTP(w, req1)
+	r.ServeHTTP(w, req2)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "testGauge")

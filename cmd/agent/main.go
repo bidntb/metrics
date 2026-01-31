@@ -23,7 +23,11 @@ func MetricService() {
 			metrics.UpdateMetrics()
 		case <-reportTicker.C:
 			if err := reporter.SendMetricsJSON(serverURL, metrics); err != nil {
-				fmt.Printf("Error sending metrics: %v\n", err)
+				fmt.Printf("Error sending metrics through path: %v\n", err)
+				err := reporter.SendMetrics(serverURL, metrics)
+				if err != nil {
+					fmt.Printf("Error sending metrics through JSON: %v\n", err)
+				}
 			}
 		}
 	}
