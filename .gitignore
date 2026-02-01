@@ -23,3 +23,7 @@ vendor/
 # IDEs directories
 .idea
 .vscode
+
+../../internal/service/.DS_Store
+../../internal/service/metrics/.DS_Store
+
