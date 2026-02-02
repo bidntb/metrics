@@ -24,5 +24,6 @@ vendor/
 .idea
 .vscode
 
-/internal/service/.DS_Store/internal/service/metrics/.DS_Store
+/internal/service/.DS_Store
+/internal/service/metrics/.DS_Store
 
