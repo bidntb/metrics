@@ -1,9 +1,9 @@
 package app
 
 import (
+	"bidntb/metrics/internal/middleware/handler"
 	"bidntb/metrics/internal/nconfig"
 	"bidntb/metrics/internal/router"
-	"bidntb/metrics/internal/service/handler"
 	"bidntb/metrics/internal/service/metrics"
 	"bidntb/metrics/internal/storage"
 )

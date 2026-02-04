@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bidntb/metrics/internal/middleware/handler"
 	"bytes"
 	"net/http"
 	"net/http/httptest"
@@ -8,7 +9,6 @@ import (
 	"testing"
 
 	"bidntb/metrics/internal/middleware"
-	"bidntb/metrics/internal/service/handler"
 	"bidntb/metrics/internal/service/metrics"
 	"bidntb/metrics/internal/storage"
 

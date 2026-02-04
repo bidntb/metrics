@@ -83,8 +83,13 @@ func (h *Handler) GetValue(c *gin.Context) {
 }
 
 func (h *Handler) GetMetricJSON(c *gin.Context) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
+		return
+	}
 	var req metrics.GetMetricRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := json.Unmarshal(body, &req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON: " + err.Error()})
 		return
 	}
