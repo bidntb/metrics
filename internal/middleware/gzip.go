@@ -21,6 +21,7 @@ func Gzip() gin.HandlerFunc {
 			body, _ := io.ReadAll(r)
 			err = r.Close()
 			if err != nil {
+				logger.Error("Error while reading unzipped")
 				return
 			}
 			c.Request.Body = io.NopCloser(bytes.NewReader(body))
@@ -36,7 +37,8 @@ func Gzip() gin.HandlerFunc {
 			defer func(w *gzip.Writer) {
 				err := w.Close()
 				if err != nil {
-
+					logger.Error("Error while closing writer")
+					return
 				}
 			}(w)
 		}
