@@ -108,10 +108,16 @@ func (h *Handler) GetMetricJSON(c *gin.Context) {
 
 func (h *Handler) ListMetrics(c *gin.Context) {
 	metricsMap := h.svc.ListAll()
-	c.JSON(http.StatusOK, gin.H{
-		"gauge":   metricsMap["gauge"],
-		"counter": metricsMap["counter"],
-	})
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Status(http.StatusOK)
+
+	for _, g := range metricsMap["gauge"] {
+		_, _ = c.Writer.Write([]byte(g + "<br>\n"))
+	}
+	for _, cM := range metricsMap["counter"] {
+		_, _ = c.Writer.Write([]byte(cM + "<br>\n"))
+	}
 }
 
 func (h *Handler) NotFoundHandler(c *gin.Context) {
