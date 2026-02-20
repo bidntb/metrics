@@ -11,7 +11,6 @@ func SetupRouter(h *handler.Handler) *gin.Engine {
 
 	r.Use(middleware.LoggingMiddleware())
 	r.Use(gin.Recovery())
-	r.Use(middleware.ErrorHandler(h.NotFoundHandler, h.BadRequestHandler))
 	r.Use(middleware.Gzip())
 
 	r.POST("/update/:type/:name/:value", h.UpdateMetric)
@@ -24,6 +23,7 @@ func SetupRouter(h *handler.Handler) *gin.Engine {
 	r.POST("/update/gauge/", h.NotFoundHandler)
 	r.POST("/update/gauge", h.NotFoundHandler)
 	r.NoRoute(h.NotFoundHandler)
+	r.Use(middleware.ErrorHandler(h.NotFoundHandler, h.BadRequestHandler))
 
 	return r
 }
