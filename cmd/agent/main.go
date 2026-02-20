@@ -12,7 +12,7 @@ import (
 func MetricService() {
 	cfg := nconfig.ParseConfig()
 
-	serverURL := fmt.Sprintf("https://%s", cfg.ServerAddr)
+	serverURL := fmt.Sprintf("http://%s", cfg.ServerAddr)
 	reportInterval := cfg.ReportInterval
 	pollInterval := cfg.PollInterval
 	reportTicker := time.NewTicker(time.Duration(reportInterval) * time.Second)
