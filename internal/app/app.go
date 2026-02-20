@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -26,18 +27,27 @@ func Run() {
 		}
 	}
 
+	tickerCtx, tickerCancel := context.WithCancel(context.Background())
+
 	var ticker *time.Ticker
 	if cfg.StoreInterval > 0 {
 		ticker = time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
 		go func() {
-			for range ticker.C {
-				if err := metricsSvc.SaveTo(cfg.FilePath); err != nil {
-					log.Printf("periodic save error: %v", err)
+			defer func() {
+				ticker.Stop()
+				tickerCancel()
+			}()
+			for {
+				select {
+				case <-ticker.C:
+					if err := metricsSvc.SaveTo(cfg.FilePath); err != nil {
+						log.Printf("periodic save error: %v", err)
+					}
+				case <-tickerCtx.Done():
+					return
 				}
 			}
 		}()
-	} else {
-		log.Printf("STORE_INTERVAL=0, synchronous persistence mode (save on update if needed)")
 	}
 
 	r := router.SetupRouter(h)
@@ -46,9 +56,11 @@ func Run() {
 		panic(err)
 	}
 
-	if ticker != nil {
-		ticker.Stop()
+	if tickerCancel != nil {
+		tickerCancel()
+		time.Sleep(100 * time.Millisecond)
 	}
+
 	if err := metricsSvc.SaveTo(cfg.FilePath); err != nil {
 		log.Printf("final save error: %v", err)
 	}
