@@ -10,8 +10,11 @@ import (
 )
 
 func MetricService() {
-	serverURL, reportInterval, pollInterval := nconfig.ParseFlags()
+	cfg := nconfig.ParseConfig()
 
+	serverURL := fmt.Sprintf("http://%s", cfg.ServerAddr)
+	reportInterval := cfg.ReportInterval
+	pollInterval := cfg.PollInterval
 	reportTicker := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
 
@@ -22,8 +25,12 @@ func MetricService() {
 		case <-pollTicker.C:
 			metrics.UpdateMetrics()
 		case <-reportTicker.C:
-			if err := reporter.SendMetrics(serverURL, metrics); err != nil {
-				fmt.Printf("Error sending metrics: %v\n", err)
+			if err := reporter.SendMetricsJSON(serverURL, metrics); err != nil {
+				fmt.Printf("Error sending metrics through path: %v\n", err)
+				err := reporter.SendMetrics(serverURL, metrics)
+				if err != nil {
+					fmt.Printf("Error sending metrics through JSON: %v\n", err)
+				}
 			}
 		}
 	}

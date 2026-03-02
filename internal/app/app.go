@@ -1,40 +1,67 @@
 package app
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+	"log"
+	"time"
 
-	"bidntb/metrics/internal/handler"
-	"bidntb/metrics/internal/logger"
+	"bidntb/metrics/internal/middleware/handler"
 	"bidntb/metrics/internal/nconfig"
+	"bidntb/metrics/internal/router"
+	"bidntb/metrics/internal/service/metrics"
 	"bidntb/metrics/internal/storage"
 )
 
 func Run() {
-
-	serverAddress := nconfig.GetServerAddress()
-
-	router := gin.Default()
-	router.Use(logger.LoggingMiddleware())
+	cfg := nconfig.ParseConfig()
 
 	storageInstance := storage.NewMemStorage()
+	metricsSvc := metrics.NewService(storageInstance)
+	h := handler.NewHandler(metricsSvc)
 
-	h := handler.NewHandler(storageInstance)
-	router.GET("/", h.IndexHandler)
-	router.GET("/value/:type/:name", h.ValueHandler)
+	if cfg.Restore {
+		if err := metricsSvc.LoadFrom(cfg.FilePath); err != nil {
+			log.Printf("failed to restore metrics from %s: %v", cfg.FilePath, err)
+		} else {
+			log.Printf("metrics restored from %s", cfg.FilePath)
+		}
+	}
 
-	router.POST("/update/counter/", h.NotFoundHandler)
-	router.POST("/update/counter", h.NotFoundHandler)
-	router.POST("/update/gauge/", h.NotFoundHandler)
-	router.POST("/update/gauge", h.NotFoundHandler)
-	router.POST("/update/:wrong", h.BadRequestHandler)
-	router.POST("/update/:wrong/*any", h.BadRequestHandler)
+	tickerCtx, tickerCancel := context.WithCancel(context.Background())
 
-	router.POST("/update/gauge/:name/:value", h.AddGaugeHandler)
-	router.POST("/update/counter/:name/:value", h.AddCounterHandler)
+	var ticker *time.Ticker
+	if cfg.StoreInterval > 0 {
+		ticker = time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
+		go func() {
+			defer func() {
+				ticker.Stop()
+				tickerCancel()
+			}()
+			for {
+				select {
+				case <-ticker.C:
+					if err := metricsSvc.SaveTo(cfg.FilePath); err != nil {
+						log.Printf("periodic save error: %v", err)
+					}
+				case <-tickerCtx.Done():
+					return
+				}
+			}
+		}()
+	}
 
-	router.NoRoute(h.NotFoundHandler)
+	r := router.SetupRouter(h)
 
-	if err := router.Run(serverAddress); err != nil {
+	if err := r.Run(cfg.ServerAddr); err != nil {
 		panic(err)
+	}
+
+	if tickerCancel != nil {
+		tickerCancel()
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if err := metricsSvc.SaveTo(cfg.FilePath); err != nil {
+		log.Printf("final save error: %v", err)
 	}
 }
